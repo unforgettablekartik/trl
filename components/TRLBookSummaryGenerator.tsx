@@ -417,15 +417,3 @@ export default function TRLBookSummaryGenerator() {
         .trl-progress__bar{ height:100%; width:33%; background: var(--brand-600); animation: trlbar 1.2s linear infinite; }
         @keyframes trlbar{0%{transform:translateX(-100%)}100%{transform:translateX(300%)}}
       `}</style>
-    </>
-  );
-}
-
-/* =======================
-   MANUAL TESTS
-   =======================
-1) Logo is top-left at ~40px height and sticky header is visible.
-2) Typography scales across mobile/desktop (check h1, hints, body text).
-3) Search → type "Sapiens" → see 5 cards, then Load 5 more.
-4) Select a card → Generate → summary + image appear; buttons work.
-*/
