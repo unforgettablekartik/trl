@@ -306,25 +306,25 @@ export default function TRLBookSummaryGenerator() {
       {/* DESIGN SYSTEM (scoped global) */}
       <style jsx global>{`
         :root{
-          --bg: #F7FBF9;         /* page background */
+          --bg: #F4FBFE;         /* page background (aqua tint) */
           --card: #FFFFFF;       /* card bg */
-          --ink: #0F1C17;        /* primary text */
+          --ink: #0D1B22;        /* primary text */
           --muted: #4B5563;      /* secondary text */
-          --line: #E6ECE9;       /* borders */
-          --brand-400:#34D399;   /* mint */
-          --brand-500:#10B981;   /* primary */
-          --brand-600:#059669;   /* primary dark */
-          --brand-700:#047857;   /* deeper */
-          --brand-800:#065F46;   /* headings */
+          --line: #E4F2F6;       /* borders */
+          --brand-400:#67E8F9;   /* aqua 400 */
+          --brand-500:#22D3EE;   /* aqua 500 */
+          --brand-600:#06B6D4;   /* aqua 600 */
+          --brand-700:#0891B2;   /* aqua 700 */
+          --brand-800:#0E7490;   /* aqua 800 */
         }
         html,body{ margin:0; padding:0; background: var(--bg); color: var(--ink); font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji"; }
 
         /* Sticky header */
-        .trl-header{ position:sticky; top:0; z-index:40; background:rgba(255,255,255,0.85); backdrop-filter:saturate(180%) blur(12px); border-bottom:1px solid var(--line); }
+        .trl-header{ position:sticky; top:0; z-index:40; background:rgba(255,255,255,0.9); backdrop-filter:saturate(180%) blur(12px); border-bottom:1px solid var(--line); box-shadow: 0 8px 22px rgba(0, 128, 149, 0.10); }
         .trl-header__inner{ max-width:1100px; margin:0 auto; padding:14px 16px; display:flex; align-items:center; justify-content:space-between; gap:12px; }
         .trl-logo{ display:flex; align-items:center; gap:12px; }
-        .trl-logo img{ height:40px; width:auto; display:block; }
-        .trl-titles h1{ margin:0; font-weight:700; color:var(--brand-800); font-size: clamp(18px, 2.5vw, 22px); line-height:1.1; }
+        .trl-logo img{ height:32px; width:auto; display:block; }
+        .trl-titles h1{ margin:0; font-weight:800; color:var(--brand-800); font-size: clamp(18px, 2.5vw, 24px); line-height:1.1; }
         .trl-titles p{ margin:2px 0 0; color:var(--muted); font-size: clamp(12px, 1.8vw, 13px); }
 
         /* App layout */
@@ -332,6 +332,7 @@ export default function TRLBookSummaryGenerator() {
         .trl-container{ max-width:1100px; margin:0 auto; padding: 24px 16px 80px; }
         .trl-center{ display:flex; justify-content:center; margin-top:16px; }
 
+        .p-4{ padding:14px; }
         /* Buttons */
         .trl-btn{ border-radius:14px; padding:10px 14px; font-size:14px; font-weight:600; border:1px solid transparent; cursor:pointer; transition: transform .03s ease, box-shadow .2s ease; }
         .trl-btn:active{ transform: translateY(1px); }
@@ -339,12 +340,12 @@ export default function TRLBookSummaryGenerator() {
         .trl-btn--primary{ background: var(--brand-600); color:#fff; }
         .trl-btn--primary:hover{ background: var(--brand-700); }
         .trl-btn--outline{ background:#fff; color: var(--brand-700); border-color: var(--brand-600); }
-        .trl-btn--outline:hover{ background:#F0FFF8; }
+        .trl-btn--outline:hover{ background:#ECFDFF; }
         .trl-btn--ghost{ background:transparent; color: var(--brand-700); }
 
         /* Inputs */
         .trl-input{ width:100%; border:1px solid var(--line); border-radius:14px; padding:12px 14px; font-size:14px; outline:none; }
-        .trl-input:focus{ border-color: var(--brand-500); box-shadow: 0 0 0 3px rgba(16,185,129,.15); }
+        .trl-input:focus{ border-color: var(--brand-500); box-shadow: 0 0 0 3px rgba(6,182,212,.16); }
 
         /* Cards */
         .trl-card{ background: var(--card); border:1px solid var(--line); border-radius:16px; box-shadow: 0 1px 2px rgba(0,0,0,.03); }
@@ -356,21 +357,21 @@ export default function TRLBookSummaryGenerator() {
         .trl-help{ margin-top:8px; font-size:12px; color:var(--muted); }
 
         /* Grid */
-        .trl-grid{ display:grid; grid-template-columns: 1fr; gap:12px; margin-top:16px; }
+        .trl-grid{ display:grid; grid-template-columns: 1fr; gap:10px; margin-top:16px; }
         @media (min-width: 768px){ .trl-grid{ grid-template-columns: 1fr 1fr; } }
 
         /* Skeleton */
         .trl-skel{ display:flex; gap:12px; }
-        .trl-skel__thumb{ width:80px; height:120px; border-radius:10px; background:#EAF6F0; }
+        .trl-skel__thumb{ width:80px; height:120px; border-radius:10px; background:#E8F8FC; }
         .trl-skel__text{ flex:1; }
-        .trl-skel__line{ height:10px; background:#EAF6F0; border-radius:6px; margin-bottom:8px; }
+        .trl-skel__line{ height:10px; background:#E8F8FC; border-radius:6px; margin-bottom:8px; }
         .trl-skel__line.w1{ width:100%; }
         .trl-skel__line.w2{ width:70%; }
         .trl-skel__line.w3{ width:50%; }
 
         /* Result item */
         .trl-item{ display:flex; gap:14px; }
-        .trl-item__thumb{ width:80px; height:112px; object-fit:cover; border-radius:10px; background:#EAF6F0; }
+        .trl-item__thumb{ width:80px; height:112px; object-fit:cover; border-radius:10px; background:#E8F8FC; }
         .trl-item__body{ flex:1; }
         .trl-item__title{ font-weight:700; font-size:16px; color: var(--ink); }
         .trl-item__meta{ font-size:13px; color: var(--muted); margin:2px 0 8px; }
@@ -383,7 +384,7 @@ export default function TRLBookSummaryGenerator() {
 
         .trl-visual{ overflow:hidden; }
         .trl-visual__frame{ position:relative; }
-        .trl-visual__ph{ padding-top:150%; background:#ECFDF5; }
+        .trl-visual__ph{ padding-top:150%; background:#E6FAFD; }
         .trl-visual__content{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; padding:12px; }
         .trl-visual__img{ width:100%; height:100%; object-fit:cover; border-radius:8px; }
         .trl-visual__empty{ text-align:center; color:var(--muted); font-size:13px; }
@@ -394,13 +395,13 @@ export default function TRLBookSummaryGenerator() {
         .trl-visual__meta .meta{ font-size:12px; color:var(--muted); }
         .trl-visual__meta .cats{ margin-top:6px; font-size:12px; color:var(--muted); }
 
-        .trl-summary{ padding:16px; }
+        .trl-summary{ padding:14px; }
         .trl-summary__bar{ display:flex; flex-wrap:wrap; align-items:center; gap:8px 10px; margin-bottom:10px; }
         .trl-target{ font-size:12px; color:var(--muted); margin-left:auto; }
         .trl-summary__hint{ color:var(--muted); font-size:14px; }
 
-        .trl-prose h2{ margin:16px 0 8px; font-size: clamp(18px, 3.2vw, 20px); color: var(--brand-800); }
-        .trl-prose h3{ margin:14px 0 6px; font-size: clamp(15px, 2.6vw, 16px); color: var(--brand-800); }
+        .trl-prose h2{ margin:16px 0 8px; font-size: clamp(18px, 3.2vw, 20px); color: var(--brand-800); font-weight:800; }
+        .trl-prose h3{ margin:14px 0 6px; font-size: clamp(15px, 2.6vw, 16px); color: var(--brand-800); font-weight:700; }
         .trl-prose p, .trl-prose li{ font-size:15px; line-height:1.6; }
         .trl-prose ul{ padding-left: 20px; }
         .trl-prose .emph{ font-style:italic; font-weight:600; }
@@ -413,7 +414,19 @@ export default function TRLBookSummaryGenerator() {
         .trl-splash__box{ display:flex; flex-direction:column; align-items:center; gap:12px; }
         .trl-splash__logo{ height:80px; width:auto; filter: drop-shadow(0 2px 6px rgba(0,0,0,.08)); }
         .trl-splash__text{ font-size:12px; color:var(--brand-800); }
-        .trl-progress{ height:8px; width:220px; background:#E6F4EA; border-radius:99px; overflow:hidden; }
+        .trl-progress{ height:8px; width:220px; background:#E6F7FB; border-radius:99px; overflow:hidden; }
         .trl-progress__bar{ height:100%; width:33%; background: var(--brand-600); animation: trlbar 1.2s linear infinite; }
         @keyframes trlbar{0%{transform:translateX(-100%)}100%{transform:translateX(300%)}}
       `}</style>
+    </>
+  );
+}
+
+/* =======================
+   MANUAL TESTS
+   =======================
+1) Logo is top-left at ~40px height and sticky header is visible.
+2) Typography scales across mobile/desktop (check h1, hints, body text).
+3) Search → type "Sapiens" → see 5 cards, then Load 5 more.
+4) Select a card → Generate → summary + image appear; buttons work.
+*/
