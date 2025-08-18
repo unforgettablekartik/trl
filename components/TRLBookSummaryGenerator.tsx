@@ -41,7 +41,7 @@ const useDebounced = (value: string, delay = 450) => {
 };
 
 // -------------------- UI PRIMITIVES --------------------
-const Button = ({ children, onClick, disabled, variant = 'primary' }: { children: React.ReactNode; onClick?: () => void; disabled?: boolean; variant?: 'primary' | 'outline' | 'ghost' }) => (
+const Button = ({ children, onClick, disabled, variant = 'primary' }: { children: React.ReactNode; onClick?: () => void; disabled?: boolean; variant?: 'primary' | 'outline' | 'ghost' | 'search' }) => (
   <button className={`trl-btn trl-btn--${variant} ${disabled ? 'is-disabled' : ''}`} onClick={onClick} disabled={disabled}>{children}</button>
 );
 
@@ -100,31 +100,32 @@ export default function TRLBookSummaryGenerator() {
   const abortRef = useRef<AbortController | null>(null);
 
   // ---- Google Books Search ----
+  async function doSearch(q: string) {
+    if (!q || q.trim().length < 2) { setBooks([]); setVisibleCount(5); return; }
+    try {
+      setLoadingSearch(true);
+      abortRef.current?.abort();
+      const ac = new AbortController();
+      abortRef.current = ac;
+      const url = new URL('https://www.googleapis.com/books/v1/volumes');
+      url.searchParams.set('q', q);
+      url.searchParams.set('maxResults', '30');
+      url.searchParams.set('printType', 'books');
+      url.searchParams.set('orderBy', 'relevance');
+      const res = await fetch(url.toString(), { signal: ac.signal });
+      const data = await res.json();
+      const items: BookLite[] = (data.items || []).map((it: any) => {
+        const v = it.volumeInfo || {};
+        const thumb = (v.imageLinks?.thumbnail || v.imageLinks?.smallThumbnail || '').replace(/^http:/, 'https:');
+        return { id: it.id, title: v.title, authors: v.authors || [], publishedDate: v.publishedDate, description: v.description, categories: v.categories, thumbnail: thumb } as BookLite;
+      });
+      setBooks(items); setVisibleCount(5);
+    } catch (e: any) { if (e?.name !== 'AbortError') console.error(e); } finally { setLoadingSearch(false); }
+  }
+
   useEffect(() => {
-    if (!debouncedQuery || debouncedQuery.trim().length < 2) {
-      setBooks([]); setVisibleCount(5); return;
-    }
-    (async () => {
-      try {
-        setLoadingSearch(true);
-        abortRef.current?.abort();
-        const ac = new AbortController();
-        abortRef.current = ac;
-        const url = new URL('https://www.googleapis.com/books/v1/volumes');
-        url.searchParams.set('q', debouncedQuery);
-        url.searchParams.set('maxResults', '30');
-        url.searchParams.set('printType', 'books');
-        url.searchParams.set('orderBy', 'relevance');
-        const res = await fetch(url.toString(), { signal: ac.signal });
-        const data = await res.json();
-        const items: BookLite[] = (data.items || []).map((it: any) => {
-          const v = it.volumeInfo || {};
-          const thumb = (v.imageLinks?.thumbnail || v.imageLinks?.smallThumbnail || '').replace(/^http:/, 'https:');
-          return { id: it.id, title: v.title, authors: v.authors || [], publishedDate: v.publishedDate, description: v.description, categories: v.categories, thumbnail: thumb } as BookLite;
-        });
-        setBooks(items); setVisibleCount(5);
-      } catch (e: any) { if (e?.name !== 'AbortError') console.error(e); } finally { setLoadingSearch(false); }
-    })();
+    if (!debouncedQuery || debouncedQuery.trim().length < 2) { setBooks([]); setVisibleCount(5); return; }
+    doSearch(debouncedQuery);
   }, [debouncedQuery]);
 
   const visibleBooks = useMemo(() => books.slice(0, visibleCount), [books, visibleCount]);
@@ -191,6 +192,9 @@ export default function TRLBookSummaryGenerator() {
             <div className="trl-search">
               <label className="trl-search__label">Search</label>
               <Input placeholder="Search by book or author (e.g., 'Sapiens' or 'Haruki Murakami')" value={query} onChange={(e) => setQuery(e.target.value)} />
+            </div>
+            <div className="trl-search__actions">
+              <Button variant="search" onClick={() => doSearch(query)} disabled={query.trim().length < 2 || loadingSearch}>SEARCH</Button>
             </div>
             <div className="trl-help">Top 5 suggestions appear below. Use the button to load 5 more.</div>
           </Card>
@@ -342,6 +346,8 @@ export default function TRLBookSummaryGenerator() {
         .trl-btn--outline{ background:#fff; color: var(--brand-700); border-color: var(--brand-600); }
         .trl-btn--outline:hover{ background:#ECFDFF; }
         .trl-btn--ghost{ background:transparent; color: var(--brand-700); }
+        .trl-btn--search{ background:#fff; color: var(--brand-800); border-color: var(--brand-700); border-width:2px; font-weight:700; letter-spacing:.3px; padding:12px 18px; }
+        .trl-btn--search:hover{ background:#ECFDFF; }
 
         /* Inputs */
         .trl-input{ width:100%; border:1px solid var(--line); border-radius:14px; padding:12px 14px; font-size:14px; outline:none; }
@@ -355,6 +361,7 @@ export default function TRLBookSummaryGenerator() {
         .trl-search{ display:flex; align-items:center; gap:12px; }
         .trl-search__label{ font-weight:600; color:var(--brand-800); font-size:14px; }
         .trl-help{ margin-top:8px; font-size:12px; color:var(--muted); }
+        .trl-search__actions{ display:flex; justify-content:center; margin-top:12px; }
 
         /* Grid */
         .trl-grid{ display:grid; grid-template-columns: 1fr; gap:10px; margin-top:16px; }
