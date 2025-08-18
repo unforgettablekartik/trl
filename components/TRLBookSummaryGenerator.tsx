@@ -190,8 +190,7 @@ export default function TRLBookSummaryGenerator() {
           {/* Search */}
           <Card className="p-4">
             <div className="trl-search">
-              <label className="trl-search__label">Search</label>
-              <Input placeholder="Search by book or author (e.g., 'Sapiens' or 'Haruki Murakami')" value={query} onChange={(e) => setQuery(e.target.value)} />
+              <Input aria-label="Search books or authors" placeholder="Search by book or author (e.g., 'Sapiens' or 'Haruki Murakami')" value={query} onChange={(e) => setQuery(e.target.value)} />
             </div>
             <div className="trl-search__actions">
               <Button variant="search" onClick={() => doSearch(query)} disabled={query.trim().length < 2 || loadingSearch}>SEARCH</Button>
