@@ -1,11 +1,7 @@
 'use client';
 
-// TRL — Fresh visual refresh: cleaner colors, readable typography, left-corner logo, sticky header
-// File: components/TRLBookSummaryGenerator.tsx
-// Notes:
-//  - No external UI libs. Pure React + small CSS (via styled-jsx) so it looks good even without Tailwind.
-//  - Logo sits top-left in a sticky header. Font sizes are responsive via clamp().
-//  - Color scheme: Sage green + warm neutral. Buttons/inputs/cards restyled for clarity.
+// TRL — polished UI, reliable search, robust summary parsing + clear errors
+// Works without Tailwind or extra UI libs.
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
@@ -20,15 +16,25 @@ interface BookLite {
   categories?: string[];
   thumbnail?: string;
 }
-
 interface Suggestion { title: string; author?: string; why: string }
 interface SummaryPayload { summary: string; readers_takeaway: string[]; readers_suggestion: Suggestion[] }
 
 // -------------------- HELPERS / BRAND --------------------
 const truncate = (t?: string, n = 160) => (t ? (t.length > n ? t.slice(0, n - 1) + '...' : t) : '');
+
 const brand = {
   name: "The Reader's Lawn",
-  logoCandidates: ['/trl-logo.png', '/The%20Reader%27s%20Lawn%20Logo.png', "/The Reader's Lawn Logo.png"],
+  // Tries multiple common filenames/extensions so your logo “just works”.
+  logoCandidates: [
+    '/trl-logo.png',
+    '/trl-logo.jpg',
+    '/trl-logo.jpeg',
+    '/trl-logo.webp',
+    '/The%20Reader%27s%20Lawn%20Logo.png',
+    '/The%20Reader%27s%20Lawn%20Logo.jpg',
+    "/The Reader's Lawn Logo.png",
+    "/The Reader's Lawn Logo.jpg",
+  ],
 };
 
 const DESIRED_WORDS = 1000; // ~1000 words
@@ -53,27 +59,28 @@ const Input: React.FC<React.InputHTMLAttributes<HTMLInputElement>> = ({ classNam
   <input className={`trl-input ${className}`} {...props} />
 );
 
+// Unified Logo with multi-file fallback (.png/.jpg/.jpeg/.webp and spaced/encoded names)
+function Logo({ className = '' }: { className?: string }) {
+  const [idx, setIdx] = useState(0);
+  const src = brand.logoCandidates[idx] || brand.logoCandidates[0];
+  return (
+    <img
+      src={src}
+      alt="The Reader's Lawn Logo"
+      className={className}
+      onError={() => setIdx(i => Math.min(i + 1, brand.logoCandidates.length - 1))}
+    />
+  );
+}
+
 // -------------------- SPLASH LOADER --------------------
 function Splash({ show }: { show: boolean }) {
   if (!show) return null;
   return (
     <div className="trl-splash">
       <div className="trl-splash__box">
-        <img
-          src="/trl-logo.png"
-          alt="The Reader's Lawn Logo"
-          className="trl-splash__logo"
-          onError={(e) => {
-            const img = e.currentTarget as HTMLImageElement;
-            if ((img as any).dataset && (img as any).dataset.altSrcTried !== '1') {
-              (img as any).dataset.altSrcTried = '1';
-              img.src = '/The%20Reader%27s%20Lawn%20Logo.png';
-            }
-          }}
-        />
-        <div className="trl-progress">
-          <div className="trl-progress__bar" />
-        </div>
+        <Logo className="trl-splash__logo" />
+        <div className="trl-progress"><div className="trl-progress__bar" /></div>
         <p className="trl-splash__text">Crafting your summary...</p>
       </div>
     </div>
@@ -87,40 +94,68 @@ export default function TRLBookSummaryGenerator() {
 
   const [books, setBooks] = useState<BookLite[]>([]);
   const [loadingSearch, setLoadingSearch] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(5);
 
   const [selected, setSelected] = useState<BookLite | null>(null);
   const [loadingSummary, setLoadingSummary] = useState(false);
   const [summary, setSummary] = useState<SummaryPayload | null>(null);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
 
   const [headerImage, setHeaderImage] = useState<string | null>(null);
   const [loadingImage, setLoadingImage] = useState(false);
+  const [imageError, setImageError] = useState<string | null>(null);
 
-  const [logoIdx, setLogoIdx] = useState(0);
   const abortRef = useRef<AbortController | null>(null);
 
-  // ---- Google Books Search ----
+  // ---- Search (proxy first, then Google Books) ----
   async function doSearch(q: string) {
-    if (!q || q.trim().length < 2) { setBooks([]); setVisibleCount(5); return; }
+    if (!q || q.trim().length < 2) { setBooks([]); setVisibleCount(5); setSearchError(null); return; }
     try {
       setLoadingSearch(true);
+      setSearchError(null);
       abortRef.current?.abort();
       const ac = new AbortController();
       abortRef.current = ac;
-      const url = new URL('https://www.googleapis.com/books/v1/volumes');
-      url.searchParams.set('q', q);
-      url.searchParams.set('maxResults', '30');
-      url.searchParams.set('printType', 'books');
-      url.searchParams.set('orderBy', 'relevance');
-      const res = await fetch(url.toString(), { signal: ac.signal });
-      const data = await res.json();
+
+      // 1) Try server-side proxy (avoids adblock/CORS)
+      let data: any | null = null;
+      try {
+        const proxy = new URL('/api/books', window.location.origin);
+        proxy.searchParams.set('q', q);
+        proxy.searchParams.set('maxResults', '30');
+        const pres = await fetch(proxy.toString(), { signal: ac.signal });
+        if (pres.ok) data = await pres.json();
+      } catch { /* fall back to public API */ }
+
+      // 2) Fallback to Google Books if proxy unavailable
+      if (!data) {
+        const gurl = new URL('https://www.googleapis.com/books/v1/volumes');
+        gurl.searchParams.set('q', q);
+        gurl.searchParams.set('maxResults', '30');
+        gurl.searchParams.set('printType', 'books');
+        gurl.searchParams.set('orderBy', 'relevance');
+        const gres = await fetch(gurl.toString(), { signal: ac.signal });
+        data = await gres.json();
+      }
+
       const items: BookLite[] = (data.items || []).map((it: any) => {
         const v = it.volumeInfo || {};
         const thumb = (v.imageLinks?.thumbnail || v.imageLinks?.smallThumbnail || '').replace(/^http:/, 'https:');
         return { id: it.id, title: v.title, authors: v.authors || [], publishedDate: v.publishedDate, description: v.description, categories: v.categories, thumbnail: thumb } as BookLite;
       });
-      setBooks(items); setVisibleCount(5);
-    } catch (e: any) { if (e?.name !== 'AbortError') console.error(e); } finally { setLoadingSearch(false); }
+
+      setBooks(items);
+      setVisibleCount(5);
+      if (!items.length) setSearchError('No results found. Try a shorter query (e.g., just the title) or a different spelling.');
+    } catch (e: any) {
+      if (e?.name !== 'AbortError') {
+        console.error(e);
+        setSearchError('Could not reach the books service. Please check your connection and try again.');
+      }
+    } finally {
+      setLoadingSearch(false);
+    }
   }
 
   useEffect(() => {
@@ -130,21 +165,72 @@ export default function TRLBookSummaryGenerator() {
 
   const visibleBooks = useMemo(() => books.slice(0, visibleCount), [books, visibleCount]);
 
-  // ---- Generate Summary + Image ----
+  // ---- Summary helpers ----
+  function normalizeSummary(raw: any): SummaryPayload | null {
+    if (!raw || typeof raw !== 'object') return null;
+    const map: Record<string, any> = {};
+    Object.keys(raw).forEach(k => { map[k.toLowerCase().replace(/[-\s]/g, '_')] = (raw as any)[k]; });
+    const summaryText = typeof map['summary'] === 'string' ? map['summary'] : '';
+    const take = Array.isArray(map['readers_takeaway']) ? map['readers_takeaway']
+              : (Array.isArray(map['reader_s_takeaway']) ? map['reader_s_takeaway'] : []);
+    const sugg = Array.isArray(map['readers_suggestion']) ? map['readers_suggestion']
+              : (Array.isArray(map['reader_s_suggestion']) ? map['reader_s_suggestion'] : []);
+    if (!summaryText) return null;
+    return { summary: summaryText, readers_takeaway: take, readers_suggestion: sugg };
+  }
+
+  // ---- Generate Summary + Image (robust) ----
   async function handleGenerate() {
     if (!selected) return;
-    setLoadingSummary(true); setSummary(null);
-    setLoadingImage(true); setHeaderImage(null);
+    setLoadingSummary(true); setSummary(null); setSummaryError(null);
+    setLoadingImage(true); setHeaderImage(null); setImageError(null);
 
-    const body = { title: selected.title, authors: selected.authors, publishedDate: selected.publishedDate, description: selected.description, categories: selected.categories, desiredWords: DESIRED_WORDS, tolerance: TOLERANCE };
+    const body = {
+      title: selected.title,
+      authors: selected.authors,
+      publishedDate: selected.publishedDate,
+      description: selected.description,
+      categories: selected.categories,
+      desiredWords: DESIRED_WORDS,
+      tolerance: TOLERANCE
+    };
+
     try {
       const [sumRes, imgRes] = await Promise.all([
         fetch('/api/summarize', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }),
         fetch('/api/generate-image', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: selected.title, authors: selected.authors }) })
       ]);
-      if (sumRes.ok) setSummary(await sumRes.json()); else console.error('Summarize error', await sumRes.text());
-      if (imgRes.ok) { const j = await imgRes.json(); setHeaderImage(j.image); } else console.error('Image error', await imgRes.text());
-    } catch (e) { console.error(e); } finally { setLoadingSummary(false); setLoadingImage(false); }
+
+      // Summary
+      if (sumRes.ok) {
+        let raw: any = null;
+        try { raw = await sumRes.json(); } catch { raw = null; }
+        if (raw && typeof raw === 'string') { try { raw = JSON.parse(raw); } catch {} }
+        const normalized = normalizeSummary(raw);
+        if (normalized) setSummary(normalized);
+        else setSummaryError('The summary came back in an unexpected format. Please try again.');
+      } else {
+        const t = await sumRes.text();
+        setSummaryError(t || 'Summary service returned an error.');
+      }
+
+      // Image
+      if (imgRes.ok) {
+        try {
+          const j = await imgRes.json();
+          if (j && j.image) setHeaderImage(j.image); else setImageError('No image returned.');
+        } catch { setImageError('Problem reading image response.'); }
+      } else {
+        const t = await imgRes.text();
+        setImageError(t || 'Image service returned an error.');
+      }
+    } catch (e) {
+      console.error(e);
+      setSummaryError('Request failed. Please check your connection and try again.');
+    } finally {
+      setLoadingSummary(false);
+      setLoadingImage(false);
+    }
   }
 
   // ---- Compose MD ----
@@ -168,11 +254,7 @@ export default function TRLBookSummaryGenerator() {
       <header className="trl-header">
         <div className="trl-header__inner">
           <div className="trl-logo">
-            <img
-              src={brand.logoCandidates[logoIdx]}
-              alt="The Reader's Lawn Logo"
-              onError={() => setLogoIdx((i) => Math.min(i + 1, brand.logoCandidates.length - 1))}
-            />
+            <Logo />
             <div className="trl-titles">
               <h1>The Reader's Lawn</h1>
               <p>AI Book Summary Generator</p>
@@ -190,12 +272,19 @@ export default function TRLBookSummaryGenerator() {
           {/* Search */}
           <Card className="p-4">
             <div className="trl-search">
-              <Input aria-label="Search books or authors" placeholder="Search by book or author (e.g., 'Sapiens' or 'Haruki Murakami')" value={query} onChange={(e) => setQuery(e.target.value)} />
+              <Input
+                aria-label="Search books or authors"
+                placeholder="Search by book or author (e.g., 'Sapiens' or 'Haruki Murakami')"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') doSearch(query); }}
+              />
             </div>
             <div className="trl-search__actions">
               <Button variant="search" onClick={() => doSearch(query)} disabled={query.trim().length < 2 || loadingSearch}>SEARCH</Button>
             </div>
             <div className="trl-help">Top 5 suggestions appear below. Use the button to load 5 more.</div>
+            {searchError && <div className="trl-error">{searchError}</div>}
           </Card>
 
           {/* Suggestions */}
@@ -265,6 +354,7 @@ export default function TRLBookSummaryGenerator() {
                   <div className="meta">{selected.authors?.join(', ')}</div>
                   {selected.categories?.length ? (<div className="cats">{selected.categories.join(' · ')}</div>) : null}
                 </div>
+                {imageError && <div className="trl-error" style={{margin: '10px 14px'}}>Image: {imageError}</div>}
               </Card>
 
               {/* Summary */}
@@ -282,6 +372,8 @@ export default function TRLBookSummaryGenerator() {
                   )}
                   <div className="trl-target">Target length: ~{DESIRED_WORDS} words (±{Math.round(TOLERANCE*100)}%)</div>
                 </div>
+
+                {summaryError && <div className="trl-error">Summary: {summaryError}</div>}
 
                 {!summary && !loadingSummary && (
                   <div className="trl-summary__hint">Click Generate / Regenerate to create a ~1000-word summary with Reader's Takeaway and Reader's Suggestion.</div>
@@ -358,9 +450,9 @@ export default function TRLBookSummaryGenerator() {
 
         /* Search row */
         .trl-search{ display:flex; align-items:center; gap:12px; }
-        .trl-search__label{ font-weight:600; color:var(--brand-800); font-size:14px; }
         .trl-help{ margin-top:8px; font-size:12px; color:var(--muted); }
         .trl-search__actions{ display:flex; justify-content:center; margin-top:12px; }
+        .trl-error{ margin-top:10px; font-size:13px; color:#B91C1C; background:#FEF2F2; border:1px solid #FECACA; padding:10px 12px; border-radius:12px; }
 
         /* Grid */
         .trl-grid{ display:grid; grid-template-columns: 1fr; gap:10px; margin-top:16px; }
@@ -380,7 +472,7 @@ export default function TRLBookSummaryGenerator() {
         .trl-item__thumb{ width:80px; height:112px; object-fit:cover; border-radius:10px; background:#E8F8FC; }
         .trl-item__body{ flex:1; }
         .trl-item__title{ font-weight:700; font-size:16px; color: var(--ink); }
-        .trl-item__meta{ font-size:13px; color: var(--muted); margin:2px 0 8px; }
+        .trl-item__meta{ font-size:13px; color:var(--muted); margin:2px 0 8px; }
         .trl-item__desc{ font-size:14px; color: var(--ink); opacity:.8; }
         .trl-item__actions{ display:flex; gap:8px; margin-top:10px; }
 
@@ -427,12 +519,3 @@ export default function TRLBookSummaryGenerator() {
     </>
   );
 }
-
-/* =======================
-   MANUAL TESTS
-   =======================
-1) Logo is top-left at ~40px height and sticky header is visible.
-2) Typography scales across mobile/desktop (check h1, hints, body text).
-3) Search → type "Sapiens" → see 5 cards, then Load 5 more.
-4) Select a card → Generate → summary + image appear; buttons work.
-*/
