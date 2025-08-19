@@ -347,6 +347,8 @@ export default function TRLBookSummaryGenerator() {
         </div>
       </header>
 
+      <meta name="google-site-verification" content="SHC8fWIFOyDRqshRe1dIn2BDppVkbycZB7s_2DRE_vs" />
+      
       {/* Main */}
       <main className="trl-app">
         <div className="trl-container">
