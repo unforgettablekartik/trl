@@ -12,13 +12,12 @@ interface BookLite {
   categories?: string[];
   thumbnail?: string;
 }
-interface Suggestion { title: string; author?: string; why: string }
+interface Suggestion { title: string; author?: string }  // ← no reason
 interface SummaryPayload { summary: string; readers_takeaway: string[]; readers_suggestion: Suggestion[] }
 
 const DESIRED_WORDS = 2000;
 const TOLERANCE = 0.15;
 
-// Language options for SUMMARY output (English default)
 const SUMMARY_LANGS = [
   { code: 'en', label: 'English (default)' },
   { code: 'hi', label: 'Hindi' },
@@ -48,15 +47,11 @@ const brand = {
   ],
 };
 
-// ===== Amazon affiliate helpers (same as before, trimmed for brevity) =====
+// ===== Amazon affiliate helpers (global-aware) =====
 const AMAZON_LOCALE_MODE = (process.env.NEXT_PUBLIC_AMAZON_LOCALE || 'auto').toLowerCase();
 const AMAZON_ALLOWED = (process.env.NEXT_PUBLIC_AMAZON_ALLOWED_LOCALES || '')
-  .split(',')
-  .map(s => s.trim().toLowerCase())
-  .filter(Boolean);
-function parseTags(jsonStr?: string): Record<string, string> {
-  try { return jsonStr ? JSON.parse(jsonStr) : {}; } catch { return {}; }
-}
+  .split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+function parseTags(jsonStr?: string): Record<string, string> { try { return jsonStr ? JSON.parse(jsonStr) : {}; } catch { return {}; } }
 const AMAZON_TAGS = parseTags(process.env.NEXT_PUBLIC_AMAZON_TAGS);
 const AMAZON_FALLBACK_TAG = process.env.NEXT_PUBLIC_AMAZON_TAG || '';
 function detectTLDFromBrowser(): string {
@@ -80,9 +75,7 @@ function pickAmazonTLD(): string {
   if (AMAZON_ALLOWED.length > 0) return AMAZON_ALLOWED.includes(detected) ? detected : (AMAZON_ALLOWED[0] || 'com');
   return detected;
 }
-function tagForTLD(tld: string): string | null {
-  return AMAZON_TAGS[tld] || AMAZON_FALLBACK_TAG || null;
-}
+function tagForTLD(tld: string): string | null { return AMAZON_TAGS[tld] || AMAZON_FALLBACK_TAG || null; }
 function amazonSearchUrl(q: string, author?: string): string | null {
   const tld = pickAmazonTLD();
   const tag = tagForTLD(tld);
@@ -137,11 +130,7 @@ function Splash({ show }: { show: boolean }) {
 export default function TRLBookSummaryGenerator() {
   const [query, setQuery] = useState('');
   const debouncedQuery = useDebounced(query);
-
-  // NEW: search-language toggle (English-only by default)
   const [searchAllLangs, setSearchAllLangs] = useState(false);
-
-  // NEW: summary language (English default)
   const [summaryLang, setSummaryLang] = useState('en');
 
   const [books, setBooks] = useState<BookLite[]>([]);
@@ -176,7 +165,7 @@ export default function TRLBookSummaryGenerator() {
         const proxy = new URL('/api/books', window.location.origin);
         proxy.searchParams.set('q', q);
         proxy.searchParams.set('maxResults', '30');
-        if (!searchAllLangs) proxy.searchParams.set('langRestrict', 'en'); // English-only results by default
+        if (!searchAllLangs) proxy.searchParams.set('langRestrict', 'en');
         const pres = await fetch(proxy.toString(), { signal: ac.signal });
         if (pres.ok) data = await pres.json();
       } catch {}
@@ -213,13 +202,41 @@ export default function TRLBookSummaryGenerator() {
     doSearch(debouncedQuery);
   }, [debouncedQuery, searchAllLangs]);
 
+  // Robust normalizer: accepts strings or objects; returns up to 3
+  function normalizeSuggestions(rs: any): Suggestion[] {
+    if (!Array.isArray(rs)) return [];
+    const out: Suggestion[] = [];
+    for (const item of rs) {
+      if (!item) continue;
+      if (typeof item === 'string') {
+        const t = item.trim(); if (t) out.push({ title: t });
+        continue;
+      }
+      const map: Record<string, any> = {};
+      Object.keys(item).forEach(k => { map[k.toLowerCase().replace(/[-\s]/g, '_')] = (item as any)[k]; });
+      const t = map['title'] || map['book'] || map['name'] || '';
+      const a = map['author'] || (Array.isArray(map['authors']) ? map['authors'][0] : undefined);
+      if (t && String(t).trim()) out.push({ title: String(t).trim(), author: a ? String(a) : undefined });
+    }
+    // de-dup by title
+    const seen = new Set<string>();
+    const uniq = out.filter(s => {
+      const key = s.title.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    return uniq.slice(0, 3);
+  }
+
   function normalizeSummary(raw: any): SummaryPayload | null {
     if (!raw || typeof raw !== 'object') return null;
     const m: any = {};
     Object.keys(raw).forEach(k => { m[k.toLowerCase().replace(/[-\s]/g, '_')] = (raw as any)[k]; });
     const summaryText = typeof m.summary === 'string' ? m.summary : '';
     const take = Array.isArray(m.readers_takeaway) ? m.readers_takeaway : (Array.isArray(m["reader_s_takeaway"]) ? m["reader_s_takeaway"] : []);
-    const sugg = Array.isArray(m.readers_suggestion) ? m.readers_suggestion : (Array.isArray(m["reader_s_suggestion"]) ? m["reader_s_suggestion"] : []);
+    const rs = m.readers_suggestion ?? m["reader_s_suggestion"] ?? [];
+    const sugg = normalizeSuggestions(rs);
     if (!summaryText) return null;
     return { summary: summaryText, readers_takeaway: take, readers_suggestion: sugg };
   }
@@ -238,7 +255,7 @@ export default function TRLBookSummaryGenerator() {
       categories: selected.categories,
       desiredWords: DESIRED_WORDS,
       tolerance: TOLERANCE,
-      language: summaryLang, // NEW: pass selected summary language
+      language: summaryLang,
     };
 
     try {
@@ -284,7 +301,12 @@ export default function TRLBookSummaryGenerator() {
     return amazonSearchUrl(s.title, s.author);
   }
 
-  // Anti-copy: block copy/cut/context menu inside summary
+  const displayedBooks = useMemo(() => {
+    if (hasGenerated && selected) return [selected];
+    return books.slice(0, visibleCount);
+  }, [hasGenerated, selected, books, visibleCount]);
+
+  // Anti-copy block for summary text
   const summaryBlockRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     const el = summaryBlockRef.current;
@@ -304,11 +326,6 @@ export default function TRLBookSummaryGenerator() {
       el.removeEventListener('dragstart', onDrag);
     };
   }, [summary]);
-
-  const displayedBooks = useMemo(() => {
-    if (hasGenerated && selected) return [selected];
-    return books.slice(0, visibleCount);
-  }, [hasGenerated, selected, books, visibleCount]);
 
   return (
     <>
@@ -338,7 +355,7 @@ export default function TRLBookSummaryGenerator() {
           <Card className="p-4">
             <div className="trl-search">
               <Input
-                lang="en"               // default keyboard language; user can still type any script
+                lang="en"
                 dir="auto"
                 aria-label="Search books or authors"
                 placeholder="Search by book or author (e.g., 'Sapiens' or 'Haruki Murakami')"
@@ -464,13 +481,12 @@ export default function TRLBookSummaryGenerator() {
                   <div
                     ref={summaryBlockRef}
                     className="trl-prose no-copy"
-                    // extra guards (React) — HTML events
                     onCopy={(e)=>e.preventDefault()}
                     onCut={(e)=>e.preventDefault()}
                     onContextMenu={(e)=>e.preventDefault()}
                     onDragStart={(e)=>e.preventDefault()}
                   >
-                    {/* Affiliate link */}
+                    {/* Affiliate link for the main book */}
                     {affiliateLinkForSelected() && (
                       <div className="trl-aff">
                         <a href={affiliateLinkForSelected()!} target="_blank" rel="noopener noreferrer">Buy this book on Amazon</a>
@@ -486,11 +502,11 @@ export default function TRLBookSummaryGenerator() {
 
                     <h3>Reader&apos;s Suggestion</h3>
                     <ul>
-                      {summary.readers_suggestion?.map((s, i) => {
-                        const url = amazonSearchUrl(s.title, s.author);
+                      {(summary.readers_suggestion || []).slice(0,3).map((s, i) => {
+                        const url = affiliateLinkForSuggestion(s);
                         return (
                           <li key={i}>
-                            <span className="emph">{s.title}</span>{s.author ? ' by ' + s.author : ''} — {s.why}
+                            <span className="emph">{s.title}</span>{s.author ? ' by ' + s.author : ''}
                             {url && <> — <a href={url} target="_blank" rel="noopener noreferrer">View on Amazon</a></>}
                           </li>
                         );
@@ -510,6 +526,7 @@ export default function TRLBookSummaryGenerator() {
         </div>
       </main>
 
+      {/* DESIGN SYSTEM */}
       <style jsx global>{`
         :root{
           --bg: #F4FBFE; --card: #FFFFFF; --ink: #0D1B22; --muted: #4B5563; --line: #E4F2F6;
@@ -595,8 +612,7 @@ export default function TRLBookSummaryGenerator() {
         .trl-prose h2{ margin:16px 0 8px; font-size: clamp(18px, 3.2vw, 20px); color: var(--brand-800); font-weight:800; }
         .trl-prose h3{ margin:14px 0 6px; font-size: clamp(15px, 2.6vw, 16px); color: var(--brand-800); font-weight:700; }
         .trl-prose p, .trl-prose li{ font-size:15px; line-height:1.7; }
-        .trl-prose p{ text-align: justify; text-justify: inter-word; hyphens: auto; } /* justified text */
-
+        .trl-prose p{ text-align: justify; text-justify: inter-word; hyphens: auto; }
         .trl-prose ul{ padding-left: 20px; }
         .trl-prose .emph{ font-style:italic; font-weight:600; }
         .trl-aff{ margin:8px 0 12px; }
@@ -605,10 +621,7 @@ export default function TRLBookSummaryGenerator() {
         .trl-disclaimer{ margin-top:18px; font-size:12px; color:var(--muted); background:#F8FAFC; border:1px solid #EEF2F7; padding:10px 12px; border-radius:12px; }
 
         /* Anti-copy styling */
-        .no-copy {
-          -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none;
-          -webkit-touch-callout: none;
-        }
+        .no-copy { -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; -webkit-touch-callout: none; }
 
         .trl-footer{ text-align:center; font-size:12px; color:var(--muted); margin-top:28px; }
 
