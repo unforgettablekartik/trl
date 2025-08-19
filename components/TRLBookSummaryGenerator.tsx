@@ -348,7 +348,17 @@ export default function TRLBookSummaryGenerator() {
       </header>
 
       <meta name="google-site-verification" content="SHC8fWIFOyDRqshRe1dIn2BDppVkbycZB7s_2DRE_vs" />
-      
+
+      <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-2XH7NZB2G2"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-2XH7NZB2G2');
+</script>
+        
       {/* Main */}
       <main className="trl-app">
         <div className="trl-container">
