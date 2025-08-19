@@ -1,10 +1,5 @@
 'use client';
 
-// TRL — UX tweaks: Select→Generate, collapse other results after Generate, 3-paragraph 2000-word summary,
-// justified paragraphs, faster perceived speed (overlay only during summary, not while image loads).
-// Also includes logo fallback + affiliate links + error states + disclaimer.
-// (Assumes summarize route now targets 2000 words w/ 3 paragraphs.)
-
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 
@@ -23,6 +18,22 @@ interface SummaryPayload { summary: string; readers_takeaway: string[]; readers_
 const DESIRED_WORDS = 2000;
 const TOLERANCE = 0.15;
 
+// Language options for SUMMARY output (English default)
+const SUMMARY_LANGS = [
+  { code: 'en', label: 'English (default)' },
+  { code: 'hi', label: 'Hindi' },
+  { code: 'es', label: 'Spanish' },
+  { code: 'fr', label: 'French' },
+  { code: 'de', label: 'German' },
+  { code: 'pt', label: 'Portuguese' },
+  { code: 'it', label: 'Italian' },
+  { code: 'ru', label: 'Russian' },
+  { code: 'ja', label: 'Japanese' },
+  { code: 'zh-Hans', label: 'Chinese (Simplified)' },
+  { code: 'ar', label: 'Arabic' },
+];
+const RTL_LANGS = new Set(['ar', 'he', 'fa', 'ur']);
+
 const brand = {
   name: "The Reader's Lawn",
   logoCandidates: [
@@ -37,7 +48,7 @@ const brand = {
   ],
 };
 
-// ===== Amazon affiliate helpers (global-aware) =====
+// ===== Amazon affiliate helpers (same as before, trimmed for brevity) =====
 const AMAZON_LOCALE_MODE = (process.env.NEXT_PUBLIC_AMAZON_LOCALE || 'auto').toLowerCase();
 const AMAZON_ALLOWED = (process.env.NEXT_PUBLIC_AMAZON_ALLOWED_LOCALES || '')
   .split(',')
@@ -47,8 +58,7 @@ function parseTags(jsonStr?: string): Record<string, string> {
   try { return jsonStr ? JSON.parse(jsonStr) : {}; } catch { return {}; }
 }
 const AMAZON_TAGS = parseTags(process.env.NEXT_PUBLIC_AMAZON_TAGS);
-const AMAZON_FALLBACK_TAG = process.env.NEXT_PUBLIC_AMAZON_TAG || ''; // optional single-tag fallback
-
+const AMAZON_FALLBACK_TAG = process.env.NEXT_PUBLIC_AMAZON_TAG || '';
 function detectTLDFromBrowser(): string {
   if (typeof window === 'undefined') return 'com';
   const lang = (navigator.language || 'en').toLowerCase();
@@ -67,9 +77,7 @@ function detectTLDFromBrowser(): string {
 function pickAmazonTLD(): string {
   if (AMAZON_LOCALE_MODE && AMAZON_LOCALE_MODE !== 'auto') return AMAZON_LOCALE_MODE;
   const detected = detectTLDFromBrowser();
-  if (AMAZON_ALLOWED.length > 0) {
-    return AMAZON_ALLOWED.includes(detected) ? detected : (AMAZON_ALLOWED[0] || 'com');
-  }
+  if (AMAZON_ALLOWED.length > 0) return AMAZON_ALLOWED.includes(detected) ? detected : (AMAZON_ALLOWED[0] || 'com');
   return detected;
 }
 function tagForTLD(tld: string): string | null {
@@ -106,13 +114,13 @@ function Logo({ className = '' }: { className?: string }) {
     />
   );
 }
+
 const useDebounced = (value: string, delay = 450) => {
   const [debounced, setDebounced] = useState(value);
   useEffect(() => { const t = setTimeout(() => setDebounced(value), delay); return () => clearTimeout(t); }, [value, delay]);
   return debounced;
 };
 
-// Splash overlay (now only for summary, not image → faster perceived speed)
 function Splash({ show }: { show: boolean }) {
   if (!show) return null;
   return (
@@ -130,13 +138,19 @@ export default function TRLBookSummaryGenerator() {
   const [query, setQuery] = useState('');
   const debouncedQuery = useDebounced(query);
 
+  // NEW: search-language toggle (English-only by default)
+  const [searchAllLangs, setSearchAllLangs] = useState(false);
+
+  // NEW: summary language (English default)
+  const [summaryLang, setSummaryLang] = useState('en');
+
   const [books, setBooks] = useState<BookLite[]>([]);
   const [loadingSearch, setLoadingSearch] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(5);
 
   const [selected, setSelected] = useState<BookLite | null>(null);
-  const [hasGenerated, setHasGenerated] = useState(false); // <- collapse results after generate
+  const [hasGenerated, setHasGenerated] = useState(false);
 
   const [loadingSummary, setLoadingSummary] = useState(false);
   const [summary, setSummary] = useState<SummaryPayload | null>(null);
@@ -147,6 +161,7 @@ export default function TRLBookSummaryGenerator() {
   const [imageError, setImageError] = useState<string | null>(null);
 
   const abortRef = useRef<AbortController | null>(null);
+  const isRtl = RTL_LANGS.has(summaryLang);
 
   async function doSearch(q: string) {
     if (!q || q.trim().length < 2) { setBooks([]); setVisibleCount(5); setSearchError(null); return; }
@@ -156,11 +171,12 @@ export default function TRLBookSummaryGenerator() {
       const ac = new AbortController();
       abortRef.current = ac;
 
-      // Try internal proxy first (if present), then public
       let data: any | null = null;
       try {
         const proxy = new URL('/api/books', window.location.origin);
-        proxy.searchParams.set('q', q); proxy.searchParams.set('maxResults', '30');
+        proxy.searchParams.set('q', q);
+        proxy.searchParams.set('maxResults', '30');
+        if (!searchAllLangs) proxy.searchParams.set('langRestrict', 'en'); // English-only results by default
         const pres = await fetch(proxy.toString(), { signal: ac.signal });
         if (pres.ok) data = await pres.json();
       } catch {}
@@ -170,6 +186,7 @@ export default function TRLBookSummaryGenerator() {
         gurl.searchParams.set('maxResults', '30');
         gurl.searchParams.set('printType', 'books');
         gurl.searchParams.set('orderBy', 'relevance');
+        if (!searchAllLangs) gurl.searchParams.set('langRestrict', 'en');
         const gres = await fetch(gurl.toString(), { signal: ac.signal });
         data = await gres.json();
       }
@@ -191,10 +208,10 @@ export default function TRLBookSummaryGenerator() {
 
   useEffect(() => {
     if (!debouncedQuery || debouncedQuery.trim().length < 2) { setBooks([]); setVisibleCount(5); return; }
-    setHasGenerated(false); // changing query resets collapse
+    setHasGenerated(false);
     setSelected(null);
     doSearch(debouncedQuery);
-  }, [debouncedQuery]);
+  }, [debouncedQuery, searchAllLangs]);
 
   function normalizeSummary(raw: any): SummaryPayload | null {
     if (!raw || typeof raw !== 'object') return null;
@@ -209,7 +226,7 @@ export default function TRLBookSummaryGenerator() {
 
   async function handleGenerate() {
     if (!selected) return;
-    setHasGenerated(true); // Immediately collapse other results
+    setHasGenerated(true);
     setLoadingSummary(true); setSummary(null); setSummaryError(null);
     setLoadingImage(true); setHeaderImage(null); setImageError(null);
 
@@ -221,6 +238,7 @@ export default function TRLBookSummaryGenerator() {
       categories: selected.categories,
       desiredWords: DESIRED_WORDS,
       tolerance: TOLERANCE,
+      language: summaryLang, // NEW: pass selected summary language
     };
 
     try {
@@ -266,26 +284,34 @@ export default function TRLBookSummaryGenerator() {
     return amazonSearchUrl(s.title, s.author);
   }
 
-  // Which books to show in grid
+  // Anti-copy: block copy/cut/context menu inside summary
+  const summaryBlockRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = summaryBlockRef.current;
+    if (!el) return;
+    const onCopy = (e: ClipboardEvent) => { e.preventDefault(); };
+    const onCut = (e: ClipboardEvent) => { e.preventDefault(); };
+    const onCtx = (e: MouseEvent) => { e.preventDefault(); };
+    const onDrag = (e: DragEvent) => { e.preventDefault(); };
+    el.addEventListener('copy', onCopy);
+    el.addEventListener('cut', onCut);
+    el.addEventListener('contextmenu', onCtx);
+    el.addEventListener('dragstart', onDrag);
+    return () => {
+      el.removeEventListener('copy', onCopy);
+      el.removeEventListener('cut', onCut);
+      el.removeEventListener('contextmenu', onCtx);
+      el.removeEventListener('dragstart', onDrag);
+    };
+  }, [summary]);
+
   const displayedBooks = useMemo(() => {
-    if (hasGenerated && selected) return [selected]; // only the chosen one remains
+    if (hasGenerated && selected) return [selected];
     return books.slice(0, visibleCount);
   }, [hasGenerated, selected, books, visibleCount]);
 
-  const composedMarkdown = useMemo(() => {
-    if (!summary || !selected) return '';
-    const head = '# ' + selected.title + '\n\n' + (selected.authors?.length ? '**By ' + selected.authors.join(', ') + '**\n\n' : '');
-    const sum = '## Summary\n\n' + summary.summary + '\n\n';
-    const takeLines = (summary.readers_takeaway || []).map((t) => '- ' + t).join('\n');
-    const take = '## Reader\'s Takeaway\n\n' + (takeLines ? takeLines + '\n\n' : '- —\n\n');
-    const suggLines = (summary.readers_suggestion || []).map((s) => '- *' + s.title + '*' + (s.author ? ' by ' + s.author : '') + ' — ' + s.why).join('\n');
-    const sugg = '## Reader\'s Suggestion\n\n' + (suggLines ? suggLines + '\n' : '- —\n');
-    return head + sum + take + sugg;
-  }, [summary, selected]);
-
   return (
     <>
-      {/* Overlay shows only while SUMMARY is loading (image can continue in the background) */}
       <Splash show={loadingSummary} />
 
       {/* Header */}
@@ -312,12 +338,17 @@ export default function TRLBookSummaryGenerator() {
           <Card className="p-4">
             <div className="trl-search">
               <Input
+                lang="en"               // default keyboard language; user can still type any script
+                dir="auto"
                 aria-label="Search books or authors"
                 placeholder="Search by book or author (e.g., 'Sapiens' or 'Haruki Murakami')"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') doSearch(query); }}
               />
+            </div>
+            <div className="trl-search__row">
+              <label className="trl-check"><input type="checkbox" checked={searchAllLangs} onChange={(e)=>setSearchAllLangs(e.target.checked)} /> Search all languages (default is English-only)</label>
             </div>
             <div className="trl-search__actions">
               <Button variant="search" onClick={() => doSearch(query)} disabled={query.trim().length < 2 || loadingSearch}>SEARCH</Button>
@@ -354,7 +385,7 @@ export default function TRLBookSummaryGenerator() {
                         <div className="trl-item__desc">{(b.description || '').slice(0, 150)}{(b.description || '').length > 150 ? '…' : ''}</div>
                         <div className="trl-item__actions">
                           {!isSelected && !hasGenerated && (
-                            <Button onClick={() => { setSelected(b); /* hide Select on this card */ }}>
+                            <Button onClick={() => { setSelected(b); }}>
                               Select
                             </Button>
                           )}
@@ -363,7 +394,6 @@ export default function TRLBookSummaryGenerator() {
                               {loadingSummary ? 'Generating...' : 'Generate Summary'}
                             </Button>
                           )}
-                          {/* After hasGenerated, we keep actions minimal on the card (main actions live in the Summary panel) */}
                         </div>
                       </div>
                     </div>
@@ -381,8 +411,7 @@ export default function TRLBookSummaryGenerator() {
 
           {/* Output */}
           {selected && (
-            <div className="trl-out">
-
+            <div className="trl-out" dir={isRtl ? 'rtl' : 'ltr'}>
               {/* Visual */}
               <Card className="trl-visual">
                 <div className="trl-visual__frame">
@@ -411,30 +440,37 @@ export default function TRLBookSummaryGenerator() {
               {/* Summary */}
               <Card className="trl-summary">
                 <div className="trl-summary__bar">
+                  <div className="trl-lang">
+                    <label>Summary language:</label>
+                    <select value={summaryLang} onChange={(e)=>setSummaryLang(e.target.value)}>
+                      {SUMMARY_LANGS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
+                    </select>
+                  </div>
+
                   <Button onClick={handleGenerate} disabled={loadingSummary}>
-                    {loadingSummary ? 'Crafting your 2000-word insight...' : (hasGenerated ? 'Regenerate' : 'Generate')}
+                    {loadingSummary ? 'Crafting your 3-paragraph insight...' : (hasGenerated ? 'Regenerate' : 'Generate')}
                   </Button>
-                  {summary && (
-                    <>
-                      <Button variant="outline" onClick={() => {
-                        const blob = new Blob([composedMarkdown], { type:'text/markdown' });
-                        const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = (selected.title || 'summary') + ' - TRL Summary.md'; a.click(); URL.revokeObjectURL(url);
-                      }}>Download .md</Button>
-                      <Button variant="outline" onClick={async () => { try { await navigator.clipboard.writeText(composedMarkdown); alert('Copied to clipboard'); } catch {} }}>Copy</Button>
-                    </>
-                  )}
-                  <div className="trl-target">Target: ~{DESIRED_WORDS} words (±{Math.round(TOLERANCE*100)}%) • 3 paragraphs</div>
+
+                  <div className="trl-target">Target: ~{DESIRED_WORDS} words • 3 paragraphs</div>
                 </div>
 
                 {summaryError && <div className="trl-error">{summaryError}</div>}
 
                 {!summary && !loadingSummary && (
-                  <div className="trl-summary__hint">Click Generate to create a 3-paragraph (~2000 words) summary plus Reader&apos;s Takeaway and Reader&apos;s Suggestion.</div>
+                  <div className="trl-summary__hint">Choose a language and click Generate to create a 3-paragraph (~2000 words) summary with Takeaways & Suggestions.</div>
                 )}
 
                 {summary && (
-                  <div className="trl-prose">
-                    {/* Affiliate link for main book */}
+                  <div
+                    ref={summaryBlockRef}
+                    className="trl-prose no-copy"
+                    // extra guards (React) — HTML events
+                    onCopy={(e)=>e.preventDefault()}
+                    onCut={(e)=>e.preventDefault()}
+                    onContextMenu={(e)=>e.preventDefault()}
+                    onDragStart={(e)=>e.preventDefault()}
+                  >
+                    {/* Affiliate link */}
                     {affiliateLinkForSelected() && (
                       <div className="trl-aff">
                         <a href={affiliateLinkForSelected()!} target="_blank" rel="noopener noreferrer">Buy this book on Amazon</a>
@@ -451,7 +487,7 @@ export default function TRLBookSummaryGenerator() {
                     <h3>Reader&apos;s Suggestion</h3>
                     <ul>
                       {summary.readers_suggestion?.map((s, i) => {
-                        const url = affiliateLinkForSuggestion(s);
+                        const url = amazonSearchUrl(s.title, s.author);
                         return (
                           <li key={i}>
                             <span className="emph">{s.title}</span>{s.author ? ' by ' + s.author : ''} — {s.why}
@@ -474,19 +510,10 @@ export default function TRLBookSummaryGenerator() {
         </div>
       </main>
 
-      {/* DESIGN SYSTEM */}
       <style jsx global>{`
         :root{
-          --bg: #F4FBFE;
-          --card: #FFFFFF;
-          --ink: #0D1B22;
-          --muted: #4B5563;
-          --line: #E4F2F6;
-          --brand-400:#67E8F9;
-          --brand-500:#22D3EE;
-          --brand-600:#06B6D4;
-          --brand-700:#0891B2;
-          --brand-800:#0E7490;
+          --bg: #F4FBFE; --card: #FFFFFF; --ink: #0D1B22; --muted: #4B5563; --line: #E4F2F6;
+          --brand-400:#67E8F9; --brand-500:#22D3EE; --brand-600:#06B6D4; --brand-700:#0891B2; --brand-800:#0E7490;
         }
         html,body{ margin:0; padding:0; background: var(--bg); color: var(--ink); font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji"; }
 
@@ -520,6 +547,8 @@ export default function TRLBookSummaryGenerator() {
         .trl-card.is-selected{ box-shadow: 0 0 0 2px var(--brand-400) inset; border-color: var(--brand-400); }
 
         .trl-search{ display:flex; align-items:center; gap:12px; }
+        .trl-search__row{ margin-top:8px; }
+        .trl-check{ font-size:13px; color: var(--muted); user-select:none; }
         .trl-search__actions{ display:flex; justify-content:center; margin-top:12px; }
         .trl-help{ margin-top:8px; font-size:12px; color:var(--muted); }
         .trl-error{ margin-top:10px; font-size:13px; color:#B91C1C; background:#FEF2F2; border:1px solid #FECACA; padding:10px 12px; border-radius:12px; }
@@ -558,19 +587,28 @@ export default function TRLBookSummaryGenerator() {
 
         .trl-summary{ padding:14px; }
         .trl-summary__bar{ display:flex; flex-wrap:wrap; align-items:center; gap:8px 10px; margin-bottom:10px; }
+        .trl-lang{ display:flex; align-items:center; gap:8px; font-size:13px; color: var(--muted); }
+        .trl-lang select{ border:1px solid var(--line); border-radius:10px; padding:6px 8px; }
         .trl-target{ font-size:12px; color:var(--muted); margin-left:auto; }
         .trl-summary__hint{ color:var(--muted); font-size:14px; }
+
         .trl-prose h2{ margin:16px 0 8px; font-size: clamp(18px, 3.2vw, 20px); color: var(--brand-800); font-weight:800; }
         .trl-prose h3{ margin:14px 0 6px; font-size: clamp(15px, 2.6vw, 16px); color: var(--brand-800); font-weight:700; }
         .trl-prose p, .trl-prose li{ font-size:15px; line-height:1.7; }
-        /* Justified paragraphs */
-        .trl-prose p{ text-align: justify; text-justify: inter-word; hyphens: auto; }
+        .trl-prose p{ text-align: justify; text-justify: inter-word; hyphens: auto; } /* justified text */
+
         .trl-prose ul{ padding-left: 20px; }
         .trl-prose .emph{ font-style:italic; font-weight:600; }
         .trl-aff{ margin:8px 0 12px; }
         .trl-aff a{ color: var(--brand-700); text-decoration: underline; }
         .trl-aff__note{ color: var(--muted); font-size: 12px; margin-left: 4px; }
         .trl-disclaimer{ margin-top:18px; font-size:12px; color:var(--muted); background:#F8FAFC; border:1px solid #EEF2F7; padding:10px 12px; border-radius:12px; }
+
+        /* Anti-copy styling */
+        .no-copy {
+          -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none;
+          -webkit-touch-callout: none;
+        }
 
         .trl-footer{ text-align:center; font-size:12px; color:var(--muted); margin-top:28px; }
 
