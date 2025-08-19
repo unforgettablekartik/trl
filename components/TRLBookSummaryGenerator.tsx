@@ -1,12 +1,13 @@
 'use client';
 
-// TRL — Polished UI + Logo fallback + Affiliate links + Error states + Disclaimer
-// Works without Tailwind; uses styled-jsx. Caches are handled server-side.
+// TRL — UX tweaks: Select→Generate, collapse other results after Generate, 3-paragraph 2000-word summary,
+// justified paragraphs, faster perceived speed (overlay only during summary, not while image loads).
+// Also includes logo fallback + affiliate links + error states + disclaimer.
+// (Assumes summarize route now targets 2000 words w/ 3 paragraphs.)
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 
-// -------------------- TYPES --------------------
 interface BookLite {
   id: string;
   title: string;
@@ -19,12 +20,11 @@ interface BookLite {
 interface Suggestion { title: string; author?: string; why: string }
 interface SummaryPayload { summary: string; readers_takeaway: string[]; readers_suggestion: Suggestion[] }
 
-// -------------------- CONFIG / BRAND --------------------
-const DESIRED_WORDS = 1000;
+const DESIRED_WORDS = 2000;
 const TOLERANCE = 0.15;
+
 const brand = {
   name: "The Reader's Lawn",
-  // Try several names/extensions to survive uploads with different names.
   logoCandidates: [
     '/trl-logo.png',
     '/trl-logo.jpg',
@@ -37,40 +37,53 @@ const brand = {
   ],
 };
 
-const AMAZON_TAG = process.env.NEXT_PUBLIC_AMAZON_TAG || '';
-const AMAZON_LOCALE = process.env.NEXT_PUBLIC_AMAZON_LOCALE || 'com';
+// ===== Amazon affiliate helpers (global-aware) =====
+const AMAZON_LOCALE_MODE = (process.env.NEXT_PUBLIC_AMAZON_LOCALE || 'auto').toLowerCase();
+const AMAZON_ALLOWED = (process.env.NEXT_PUBLIC_AMAZON_ALLOWED_LOCALES || '')
+  .split(',')
+  .map(s => s.trim().toLowerCase())
+  .filter(Boolean);
+function parseTags(jsonStr?: string): Record<string, string> {
+  try { return jsonStr ? JSON.parse(jsonStr) : {}; } catch { return {}; }
+}
+const AMAZON_TAGS = parseTags(process.env.NEXT_PUBLIC_AMAZON_TAGS);
+const AMAZON_FALLBACK_TAG = process.env.NEXT_PUBLIC_AMAZON_TAG || ''; // optional single-tag fallback
 
-function pickAmazonTLD(): string {
-  // If developer set a project-wide default, use it
-  const envTld = (AMAZON_LOCALE || 'com').toLowerCase();
-  const allowed = ['com','in','co.uk','de','fr','es','it','com.br','ca','com.au','jp'];
-  if (allowed.includes(envTld)) return envTld;
-
-  // Otherwise, guess by browser language
-  if (typeof window !== 'undefined') {
-    const lang = (navigator.language || 'en').toLowerCase();
-    if (lang.startsWith('en-in') || lang.endsWith('-in')) return 'in';
-    if (lang.startsWith('en-gb')) return 'co.uk';
-    if (lang.startsWith('de')) return 'de';
-    if (lang.startsWith('fr')) return 'fr';
-    if (lang.startsWith('es')) return 'es';
-    if (lang.startsWith('it')) return 'it';
-    if (lang.startsWith('pt-br')) return 'com.br';
-    if (lang.startsWith('en-ca') || lang.endsWith('-ca')) return 'ca';
-    if (lang.startsWith('en-au') || lang.endsWith('-au')) return 'com.au';
-    if (lang.startsWith('ja')) return 'jp';
-  }
+function detectTLDFromBrowser(): string {
+  if (typeof window === 'undefined') return 'com';
+  const lang = (navigator.language || 'en').toLowerCase();
+  if (lang.startsWith('en-in') || lang.endsWith('-in')) return 'in';
+  if (lang.startsWith('en-gb')) return 'co.uk';
+  if (lang.startsWith('de')) return 'de';
+  if (lang.startsWith('fr')) return 'fr';
+  if (lang.startsWith('es')) return 'es';
+  if (lang.startsWith('it')) return 'it';
+  if (lang.startsWith('pt-br')) return 'com.br';
+  if (lang.startsWith('en-ca') || lang.endsWith('-ca')) return 'ca';
+  if (lang.startsWith('en-au') || lang.endsWith('-au')) return 'com.au';
+  if (lang.startsWith('ja')) return 'jp';
   return 'com';
 }
-
+function pickAmazonTLD(): string {
+  if (AMAZON_LOCALE_MODE && AMAZON_LOCALE_MODE !== 'auto') return AMAZON_LOCALE_MODE;
+  const detected = detectTLDFromBrowser();
+  if (AMAZON_ALLOWED.length > 0) {
+    return AMAZON_ALLOWED.includes(detected) ? detected : (AMAZON_ALLOWED[0] || 'com');
+  }
+  return detected;
+}
+function tagForTLD(tld: string): string | null {
+  return AMAZON_TAGS[tld] || AMAZON_FALLBACK_TAG || null;
+}
 function amazonSearchUrl(q: string, author?: string): string | null {
-  if (!AMAZON_TAG) return null; // Hide links if tag not configured
   const tld = pickAmazonTLD();
+  const tag = tagForTLD(tld);
+  if (!tag) return null;
   const query = encodeURIComponent(q + (author ? ' ' + author : ''));
-  return `https://www.amazon.${tld}/s?k=${query}&i=stripbooks&tag=${encodeURIComponent(AMAZON_TAG)}`;
+  return `https://www.amazon.${tld}/s?k=${query}&i=stripbooks&tag=${encodeURIComponent(tag)}`;
 }
 
-// -------------------- UI PRIMITIVES --------------------
+// UI primitives
 const Button = ({ children, onClick, disabled, variant = 'primary' }: { children: React.ReactNode; onClick?: () => void; disabled?: boolean; variant?: 'primary' | 'outline' | 'ghost' | 'search' }) => (
   <button className={`trl-btn trl-btn--${variant} ${disabled ? 'is-disabled' : ''}`} onClick={onClick} disabled={disabled}>{children}</button>
 );
@@ -81,7 +94,6 @@ const Input: React.FC<React.InputHTMLAttributes<HTMLInputElement>> = ({ classNam
   <input className={`trl-input ${className}`} {...props} />
 );
 
-// Logo with multi-file fallback
 function Logo({ className = '' }: { className?: string }) {
   const [idx, setIdx] = React.useState(0);
   const src = brand.logoCandidates[idx] || brand.logoCandidates[0];
@@ -94,15 +106,13 @@ function Logo({ className = '' }: { className?: string }) {
     />
   );
 }
-
-// Debounce
 const useDebounced = (value: string, delay = 450) => {
   const [debounced, setDebounced] = useState(value);
   useEffect(() => { const t = setTimeout(() => setDebounced(value), delay); return () => clearTimeout(t); }, [value, delay]);
   return debounced;
 };
 
-// Splash
+// Splash overlay (now only for summary, not image → faster perceived speed)
 function Splash({ show }: { show: boolean }) {
   if (!show) return null;
   return (
@@ -116,7 +126,6 @@ function Splash({ show }: { show: boolean }) {
   );
 }
 
-// -------------------- MAIN --------------------
 export default function TRLBookSummaryGenerator() {
   const [query, setQuery] = useState('');
   const debouncedQuery = useDebounced(query);
@@ -127,6 +136,8 @@ export default function TRLBookSummaryGenerator() {
   const [visibleCount, setVisibleCount] = useState(5);
 
   const [selected, setSelected] = useState<BookLite | null>(null);
+  const [hasGenerated, setHasGenerated] = useState(false); // <- collapse results after generate
+
   const [loadingSummary, setLoadingSummary] = useState(false);
   const [summary, setSummary] = useState<SummaryPayload | null>(null);
   const [summaryError, setSummaryError] = useState<string | null>(null);
@@ -180,10 +191,11 @@ export default function TRLBookSummaryGenerator() {
 
   useEffect(() => {
     if (!debouncedQuery || debouncedQuery.trim().length < 2) { setBooks([]); setVisibleCount(5); return; }
+    setHasGenerated(false); // changing query resets collapse
+    setSelected(null);
     doSearch(debouncedQuery);
   }, [debouncedQuery]);
 
-  // Normalize (client safety net)
   function normalizeSummary(raw: any): SummaryPayload | null {
     if (!raw || typeof raw !== 'object') return null;
     const m: any = {};
@@ -197,6 +209,7 @@ export default function TRLBookSummaryGenerator() {
 
   async function handleGenerate() {
     if (!selected) return;
+    setHasGenerated(true); // Immediately collapse other results
     setLoadingSummary(true); setSummary(null); setSummaryError(null);
     setLoadingImage(true); setHeaderImage(null); setImageError(null);
 
@@ -245,7 +258,6 @@ export default function TRLBookSummaryGenerator() {
     }
   }
 
-  // Affiliate helpers
   function affiliateLinkForSelected(): string | null {
     if (!selected) return null;
     return amazonSearchUrl(selected.title, (selected.authors || [])[0]);
@@ -254,7 +266,12 @@ export default function TRLBookSummaryGenerator() {
     return amazonSearchUrl(s.title, s.author);
   }
 
-  // Compose markdown (for download/copy)
+  // Which books to show in grid
+  const displayedBooks = useMemo(() => {
+    if (hasGenerated && selected) return [selected]; // only the chosen one remains
+    return books.slice(0, visibleCount);
+  }, [hasGenerated, selected, books, visibleCount]);
+
   const composedMarkdown = useMemo(() => {
     if (!summary || !selected) return '';
     const head = '# ' + selected.title + '\n\n' + (selected.authors?.length ? '**By ' + selected.authors.join(', ') + '**\n\n' : '');
@@ -268,7 +285,8 @@ export default function TRLBookSummaryGenerator() {
 
   return (
     <>
-      <Splash show={loadingSummary || loadingImage} />
+      {/* Overlay shows only while SUMMARY is loading (image can continue in the background) */}
+      <Splash show={loadingSummary} />
 
       {/* Header */}
       <header className="trl-header">
@@ -281,7 +299,7 @@ export default function TRLBookSummaryGenerator() {
             </div>
           </div>
           <div className="trl-header__actions">
-            <Button variant="outline" onClick={() => window.location.reload()}>New Session</Button>
+            <Button variant="outline" onClick={() => { window.location.reload(); }}>New Session</Button>
           </div>
         </div>
       </header>
@@ -324,30 +342,38 @@ export default function TRLBookSummaryGenerator() {
                 </Card>
               ))
             ) : (
-              books.slice(0, visibleCount).map((b) => (
-                <Card key={b.id} className={`p-4 ${selected?.id === b.id ? 'is-selected' : ''}`}>
-                  <div className="trl-item">
-                    <img src={b.thumbnail || 'https://placehold.co/128x192?text=No+Cover'} alt={b.title} className="trl-item__thumb" loading="lazy" />
-                    <div className="trl-item__body">
-                      <div className="trl-item__title">{b.title}</div>
-                      <div className="trl-item__meta">{b.authors?.join(', ')}{b.publishedDate ? ' · ' + b.publishedDate : ''}</div>
-                      <div className="trl-item__desc">{(b.description || '').slice(0, 150)}{(b.description || '').length > 150 ? '…' : ''}</div>
-                      <div className="trl-item__actions">
-                        <Button onClick={() => setSelected(b)}>Select</Button>
-                        {selected?.id === b.id && (
-                          <Button variant="outline" onClick={handleGenerate} disabled={loadingSummary}>
-                            {loadingSummary ? 'Generating...' : 'Generate Summary'}
-                          </Button>
-                        )}
+              displayedBooks.map((b) => {
+                const isSelected = selected?.id === b.id;
+                return (
+                  <Card key={b.id} className={`p-4 ${isSelected ? 'is-selected' : ''}`}>
+                    <div className="trl-item">
+                      <img src={b.thumbnail || 'https://placehold.co/128x192?text=No+Cover'} alt={b.title} className="trl-item__thumb" loading="lazy" />
+                      <div className="trl-item__body">
+                        <div className="trl-item__title">{b.title}</div>
+                        <div className="trl-item__meta">{b.authors?.join(', ')}{b.publishedDate ? ' · ' + b.publishedDate : ''}</div>
+                        <div className="trl-item__desc">{(b.description || '').slice(0, 150)}{(b.description || '').length > 150 ? '…' : ''}</div>
+                        <div className="trl-item__actions">
+                          {!isSelected && !hasGenerated && (
+                            <Button onClick={() => { setSelected(b); /* hide Select on this card */ }}>
+                              Select
+                            </Button>
+                          )}
+                          {isSelected && !hasGenerated && (
+                            <Button variant="outline" onClick={handleGenerate} disabled={loadingSummary}>
+                              {loadingSummary ? 'Generating...' : 'Generate Summary'}
+                            </Button>
+                          )}
+                          {/* After hasGenerated, we keep actions minimal on the card (main actions live in the Summary panel) */}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </Card>
-              ))
+                  </Card>
+                );
+              })
             )}
           </div>
 
-          {books.length > visibleCount && (
+          {!hasGenerated && books.length > visibleCount && (
             <div className="trl-center">
               <Button variant="outline" onClick={() => setVisibleCount((c) => Math.min(c + 5, books.length))}>Load 5 more</Button>
             </div>
@@ -385,7 +411,9 @@ export default function TRLBookSummaryGenerator() {
               {/* Summary */}
               <Card className="trl-summary">
                 <div className="trl-summary__bar">
-                  <Button onClick={handleGenerate} disabled={loadingSummary}>{loadingSummary ? 'Crafting your 1000-word insight...' : 'Generate / Regenerate'}</Button>
+                  <Button onClick={handleGenerate} disabled={loadingSummary}>
+                    {loadingSummary ? 'Crafting your 2000-word insight...' : (hasGenerated ? 'Regenerate' : 'Generate')}
+                  </Button>
                   {summary && (
                     <>
                       <Button variant="outline" onClick={() => {
@@ -395,18 +423,18 @@ export default function TRLBookSummaryGenerator() {
                       <Button variant="outline" onClick={async () => { try { await navigator.clipboard.writeText(composedMarkdown); alert('Copied to clipboard'); } catch {} }}>Copy</Button>
                     </>
                   )}
-                  <div className="trl-target">Target length: ~{DESIRED_WORDS} words (±{Math.round(TOLERANCE*100)}%)</div>
+                  <div className="trl-target">Target: ~{DESIRED_WORDS} words (±{Math.round(TOLERANCE*100)}%) • 3 paragraphs</div>
                 </div>
 
                 {summaryError && <div className="trl-error">{summaryError}</div>}
 
                 {!summary && !loadingSummary && (
-                  <div className="trl-summary__hint">Click Generate / Regenerate to create a ~1000-word summary with Reader&apos;s Takeaway and Reader&apos;s Suggestion.</div>
+                  <div className="trl-summary__hint">Click Generate to create a 3-paragraph (~2000 words) summary plus Reader&apos;s Takeaway and Reader&apos;s Suggestion.</div>
                 )}
 
                 {summary && (
                   <div className="trl-prose">
-                    {/* Affiliate links (top) */}
+                    {/* Affiliate link for main book */}
                     {affiliateLinkForSelected() && (
                       <div className="trl-aff">
                         <a href={affiliateLinkForSelected()!} target="_blank" rel="noopener noreferrer">Buy this book on Amazon</a>
@@ -421,7 +449,6 @@ export default function TRLBookSummaryGenerator() {
                     <ul>{summary.readers_takeaway?.map((t, i) => <li key={i}>{t}</li>)}</ul>
 
                     <h3>Reader&apos;s Suggestion</h3>
-                    {/* Suggestions with affiliate links if configured */}
                     <ul>
                       {summary.readers_suggestion?.map((s, i) => {
                         const url = affiliateLinkForSuggestion(s);
@@ -434,7 +461,6 @@ export default function TRLBookSummaryGenerator() {
                       })}
                     </ul>
 
-                    {/* Copyright disclaimer */}
                     <div className="trl-disclaimer">
                       Disclaimer: Summaries and header images are generated by AI for reading inspiration. We do not reproduce the original book’s text or exact cover artwork. Please verify critical facts with the book itself. © Respective rights holders.
                     </div>
@@ -536,7 +562,9 @@ export default function TRLBookSummaryGenerator() {
         .trl-summary__hint{ color:var(--muted); font-size:14px; }
         .trl-prose h2{ margin:16px 0 8px; font-size: clamp(18px, 3.2vw, 20px); color: var(--brand-800); font-weight:800; }
         .trl-prose h3{ margin:14px 0 6px; font-size: clamp(15px, 2.6vw, 16px); color: var(--brand-800); font-weight:700; }
-        .trl-prose p, .trl-prose li{ font-size:15px; line-height:1.6; }
+        .trl-prose p, .trl-prose li{ font-size:15px; line-height:1.7; }
+        /* Justified paragraphs */
+        .trl-prose p{ text-align: justify; text-justify: inter-word; hyphens: auto; }
         .trl-prose ul{ padding-left: 20px; }
         .trl-prose .emph{ font-style:italic; font-weight:600; }
         .trl-aff{ margin:8px 0 12px; }
