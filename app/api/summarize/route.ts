@@ -1,7 +1,48 @@
 import OpenAI from 'openai';
 import { NextRequest } from 'next/server';
+import crypto from 'crypto';
 
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+// ----- Minimal Upstash REST helpers (no extra deps) -----
+const KV_URL = process.env.UPSTASH_REDIS_REST_URL || '';
+const KV_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || '';
+async function kvGet(key: string): Promise<any | null> {
+  if (!KV_URL || !KV_TOKEN) return null;
+  try {
+    const r = await fetch(`${KV_URL}/get/${encodeURIComponent(key)}`, {
+      headers: { Authorization: `Bearer ${KV_TOKEN}` },
+      cache: 'no-store',
+    });
+    const j = await r.json();
+    return j?.result ? JSON.parse(j.result) : null;
+  } catch { return null; }
+}
+async function kvSet(key: string, value: any, ttlSeconds = 2592000 /*30d*/): Promise<void> {
+  if (!KV_URL || !KV_TOKEN) return;
+  try {
+    await fetch(`${KV_URL}/set/${encodeURIComponent(key)}/${encodeURIComponent(JSON.stringify(value))}?EX=${ttlSeconds}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${KV_TOKEN}` },
+    });
+  } catch { /* ignore */ }
+}
+
+function hashKey(obj: any) {
+  return crypto.createHash('sha256').update(JSON.stringify(obj)).digest('hex').slice(0, 24);
+}
+
+// Normalize model output into the exact shape we render
+function normalize(raw: any) {
+  if (!raw || typeof raw !== 'object') return null;
+  const map: Record<string, any> = {};
+  Object.keys(raw).forEach(k => { map[k.toLowerCase().replace(/[-\s]/g, '_')] = (raw as any)[k]; });
+  const summary = typeof map['summary'] === 'string' ? map['summary'] : '';
+  const readers_takeaway = Array.isArray(map['readers_takeaway']) ? map['readers_takeaway'] : (Array.isArray(map["reader_s_takeaway"]) ? map["reader_s_takeaway"] : []);
+  const readers_suggestion = Array.isArray(map['readers_suggestion']) ? map['readers_suggestion'] : (Array.isArray(map["reader_s_suggestion"]) ? map["reader_s_suggestion"] : []);
+  if (!summary) return null;
+  return { summary, readers_takeaway, readers_suggestion };
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -17,6 +58,13 @@ export async function POST(req: NextRequest) {
     } = body || {};
 
     if (!title) return new Response('Missing title', { status: 400 });
+
+    // ---- CACHE LOOKUP (summary) ----
+    const cacheKey = `trl:sum:${hashKey({ title, authors, publishedDate })}`;
+    const cached = await kvGet(cacheKey);
+    if (cached && cached.summary) {
+      return new Response(JSON.stringify(cached), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
 
     const sys =
       "You are TRL Summarizer for The Reader's Lawn. " +
@@ -45,28 +93,20 @@ export async function POST(req: NextRequest) {
       response_format: { type: 'json_object' },
     });
 
-    const content = completion.choices[0]?.message?.content || '{}';
-
-    // Parse and coerce the shape strictly
+    // Parse & coerce
     let obj: any = null;
-    try { obj = JSON.parse(content); } catch {
-      const m = content.match(/\{[\s\S]*\}/);
+    try { obj = JSON.parse(completion.choices[0]?.message?.content || '{}'); } catch {
+      const raw = completion.choices[0]?.message?.content || '';
+      const m = raw.match(/\{[\s\S]*\}/);
       if (m) { try { obj = JSON.parse(m[0]); } catch {} }
     }
-    const out = {
-      summary: typeof obj?.summary === 'string' ? obj.summary : '',
-      readers_takeaway: Array.isArray(obj?.readers_takeaway) ? obj.readers_takeaway : [],
-      readers_suggestion: Array.isArray(obj?.readers_suggestion) ? obj.readers_suggestion : [],
-    };
+    const out = normalize(obj);
+    if (!out) return new Response('Model returned an empty or invalid summary', { status: 502 });
 
-    if (!out.summary) {
-      return new Response('Model returned an empty summary', { status: 502 });
-    }
+    // Save to cache (30 days)
+    await kvSet(cacheKey, out);
 
-    return new Response(JSON.stringify(out), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return new Response(JSON.stringify(out), { status: 200, headers: { 'Content-Type': 'application/json' } });
   } catch (e: any) {
     console.error(e);
     return new Response(e?.message || 'OpenAI error', { status: 500 });
