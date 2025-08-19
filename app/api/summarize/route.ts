@@ -38,8 +38,10 @@ function normalize(raw: any) {
   const map: Record<string, any> = {};
   Object.keys(raw).forEach(k => { map[k.toLowerCase().replace(/[-\s]/g, '_')] = (raw as any)[k]; });
   const summary = typeof map['summary'] === 'string' ? map['summary'] : '';
-  const readers_takeaway = Array.isArray(map['readers_takeaway']) ? map['readers_takeaway'] : (Array.isArray(map["reader_s_takeaway"]) ? map["reader_s_takeaway"] : []);
-  const readers_suggestion = Array.isArray(map['readers_suggestion']) ? map['readers_suggestion'] : (Array.isArray(map["reader_s_suggestion"]) ? map["reader_s_suggestion"] : []);
+  const readers_takeaway = Array.isArray(map['readers_takeaway']) ? map['readers_takeaway']
+    : (Array.isArray(map["reader_s_takeaway"]) ? map["reader_s_takeaway"] : []);
+  const readers_suggestion = Array.isArray(map['readers_suggestion']) ? map['readers_suggestion']
+    : (Array.isArray(map["reader_s_suggestion"]) ? map["reader_s_suggestion"] : []);
   if (!summary) return null;
   return { summary, readers_takeaway, readers_suggestion };
 }
@@ -53,14 +55,14 @@ export async function POST(req: NextRequest) {
       publishedDate,
       description,
       categories,
-      desiredWords = 1000,
+      desiredWords = 2000, // <-- 2000 words
       tolerance = 0.15,
     } = body || {};
 
     if (!title) return new Response('Missing title', { status: 400 });
 
     // ---- CACHE LOOKUP (summary) ----
-    const cacheKey = `trl:sum:${hashKey({ title, authors, publishedDate })}`;
+    const cacheKey = `trl:sum:${hashKey({ title, authors, publishedDate, desiredWords })}`;
     const cached = await kvGet(cacheKey);
     if (cached && cached.summary) {
       return new Response(JSON.stringify(cached), { status: 200, headers: { 'Content-Type': 'application/json' } });
@@ -68,12 +70,15 @@ export async function POST(req: NextRequest) {
 
     const sys =
       "You are TRL Summarizer for The Reader's Lawn. " +
-      "Produce an insightful, neutral summary of the selected book. " +
-      "After the summary, include two sections: (1) Reader's Takeaway with 5-8 crisp bullets, " +
-      "(2) Reader's Suggestion recommending 2-3 similar books with one-line reasons. " +
+      "Write an insightful, neutral summary of the selected book. " +
+      "The MAIN SUMMARY must be exactly three substantial paragraphs separated by a single blank line, " +
+      "with a total of approximately the requested word count (do not exceed the tolerance). " +
+      "After the three paragraphs, include two sections: (1) Reader's Takeaway with 5–8 crisp bullets, " +
+      "(2) Reader's Suggestion recommending 2–3 similar books with a one-line reason each. " +
       "Avoid spoilers where possible. " +
-      `Aim for ${desiredWords} words with a +/- ${Math.round(tolerance * 100)}% tolerance. ` +
-      "Output STRICT JSON with keys: summary, readers_takeaway, readers_suggestion.";
+      `Aim for ${desiredWords} total words across the three paragraphs with a +/- ${Math.round(tolerance * 100)}% tolerance. ` +
+      "Output STRICT JSON with keys: summary, readers_takeaway, readers_suggestion. " +
+      "Put ONLY the three paragraphs (separated by blank lines) inside the `summary` string, nothing else.";
 
     const userPayload = {
       title,
@@ -88,7 +93,13 @@ export async function POST(req: NextRequest) {
       temperature: 0.7,
       messages: [
         { role: 'system', content: sys },
-        { role: 'user', content: "BOOK METADATA (JSON):\n" + JSON.stringify(userPayload, null, 2) + "\n\nReturn only JSON." },
+        {
+          role: 'user',
+          content:
+            "BOOK METADATA (JSON):\n" +
+            JSON.stringify(userPayload, null, 2) +
+            "\n\nReturn only JSON.",
+        },
       ],
       response_format: { type: 'json_object' },
     });
