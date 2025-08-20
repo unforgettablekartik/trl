@@ -34,4 +34,44 @@ export const metadata: Metadata = {
       { url: '/icon-32.png', sizes: '32x32', type: 'image/png' },
       { url: '/icon-16.png', sizes: '16x16', type: 'image/png' },
     ],
-    apple: [{ url: '/apple-touch-icon.png', sizes: '180x180', type: 'i]()
+    apple: [{ url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
+  },
+};
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const websiteLd = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "The Reader’s Lawn",
+    "url": "https://www.readerslawn.com",
+    "potentialAction": {
+      "@type": "SearchAction",
+      "target": "https://www.readerslawn.com/?q={search_term_string}",
+      "query-input": "required name=search_term_string"
+    }
+  };
+  const orgLd = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "The Reader’s Lawn",
+    "alternateName": ["The Reader’s Lawn®", "Reader's Lawn", "Readers Lawn", "The Readers Lawn"],
+    "url": "https://www.readerslawn.com",
+    "logo": "https://www.readerslawn.com/og-readerslawn.png",
+    "sameAs": []
+  };
+
+  return (
+    <html lang="en">
+      <body>
+        {children}
+        <Script id="ld-website" type="application/ld+json" strategy="afterInteractive">
+          {JSON.stringify(websiteLd)}
+        </Script>
+        <Script id="ld-org" type="application/ld+json" strategy="afterInteractive">
+          {JSON.stringify(orgLd)}
+        </Script>
+        <Analytics />
+      </body>
+    </html>
+  );
+}
