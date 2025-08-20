@@ -1,10 +1,11 @@
+// app/api/summarize/route.ts
 import OpenAI from 'openai';
 import { NextRequest } from 'next/server';
 import crypto from 'crypto';
 
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-// ----- Minimal Upstash REST helpers (no extra deps) -----
+// ----- Upstash REST helpers -----
 const KV_URL = process.env.UPSTASH_REDIS_REST_URL || '';
 const KV_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || '';
 async function kvGet(key: string): Promise<any | null> {
@@ -33,32 +34,18 @@ function hashKey(obj: any) {
 }
 
 const LANG_MAP: Record<string, string> = {
-  en: 'English',
-  hi: 'Hindi',
-  es: 'Spanish',
-  fr: 'French',
-  de: 'German',
-  pt: 'Portuguese',
-  it: 'Italian',
-  ru: 'Russian',
-  ja: 'Japanese',
-  'zh-Hans': 'Chinese (Simplified)',
-  ar: 'Arabic',
+  en: 'English', hi: 'Hindi', es: 'Spanish', fr: 'French', de: 'German',
+  pt: 'Portuguese', it: 'Italian', ru: 'Russian', ja: 'Japanese', 'zh-Hans': 'Chinese (Simplified)', ar: 'Arabic',
 };
 
 type SuggestionOut = { title: string; author?: string };
 
-// Coerce suggestions into [{title, author?}] and cap to 3
 function normalizeSuggestions(val: any): SuggestionOut[] {
   if (!Array.isArray(val)) return [];
   const out: SuggestionOut[] = [];
   for (const item of val) {
     if (!item) continue;
-    if (typeof item === 'string') {
-      const t = item.trim();
-      if (t) out.push({ title: t });
-      continue;
-    }
+    if (typeof item === 'string') { const t = item.trim(); if (t) out.push({ title: t }); continue; }
     if (typeof item === 'object') {
       const map: Record<string, any> = {};
       Object.keys(item).forEach(k => { map[k.toLowerCase().replace(/[-\s]/g, '_')] = (item as any)[k]; });
@@ -67,18 +54,12 @@ function normalizeSuggestions(val: any): SuggestionOut[] {
       if (t && String(t).trim()) out.push({ title: String(t).trim(), author: a ? String(a) : undefined });
     }
   }
-  // de-dup by title (case-insensitive)
+  // de-dup by title
   const seen = new Set<string>();
-  const uniq = out.filter(s => {
-    const key = s.title.toLowerCase();
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
+  const uniq = out.filter(s => { const k = s.title.toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; });
   return uniq.slice(0, 3);
 }
 
-// Normalize model output into the exact shape we render
 function normalize(raw: any) {
   if (!raw || typeof raw !== 'object') return null;
   const map: Record<string, any> = {};
@@ -86,36 +67,29 @@ function normalize(raw: any) {
   const summary = typeof map['summary'] === 'string' ? map['summary'] : '';
   const readers_takeaway = Array.isArray(map['readers_takeaway']) ? map['readers_takeaway']
     : (Array.isArray(map["reader_s_takeaway"]) ? map["reader_s_takeaway"] : []);
-  // suggestions can be strings or objects; also tolerate older shapes that had "why"
-  const rs = map['readers_suggestion'] ?? map['reader_s_suggestion'] ?? [];
-  const readers_suggestion = normalizeSuggestions(rs);
+  const readers_suggestion = normalizeSuggestions(map['readers_suggestion'] ?? map['reader_s_suggestion'] ?? []);
+  let readers_treat = '';
+  if (typeof map['readers_treat'] === 'string') readers_treat = map['readers_treat'];
+  else if (Array.isArray(map['readers_treat'])) readers_treat = map['readers_treat'].join(' ');
   if (!summary) return null;
-  return { summary, readers_takeaway, readers_suggestion };
+  return { summary, readers_takeaway, readers_suggestion, readers_treat };
 }
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const {
-      title,
-      authors,
-      publishedDate,
-      description,
-      categories,
-      desiredWords = 2000,   // 3 paragraphs, ~2000 words
-      tolerance = 0.15,
-      language = 'en',
+      title, authors, publishedDate, description, categories,
+      desiredWords = 2000, tolerance = 0.15, language = 'en',
     } = body || {};
 
     if (!title) return new Response('Missing title', { status: 400 });
 
     const langCode = (language || 'en').toString();
     const targetLanguage =
-      LANG_MAP[langCode] ||
-      LANG_MAP[langCode.toLowerCase?.()] ||
+      LANG_MAP[langCode] || LANG_MAP[langCode.toLowerCase?.()] ||
       (typeof language === 'string' ? language : 'English');
 
-    // ---- CACHE LOOKUP (per language) ----
     const cacheKey = `trl:sum:${hashKey({ title, authors, publishedDate, desiredWords, language: targetLanguage })}`;
     const cached = await kvGet(cacheKey);
     if (cached && cached.summary) {
@@ -123,24 +97,19 @@ export async function POST(req: NextRequest) {
     }
 
     const sys =
-      "You are TRL Summarizer for The Reader's Lawn. " +
-      `Write the main summary in ${targetLanguage}. ` +
-      "The MAIN SUMMARY must be exactly three substantial paragraphs separated by a single blank line, " +
-      "with a total of approximately the requested word count (do not exceed the tolerance). " +
-      "After the three paragraphs, include two sections: " +
-      "(1) Reader's Takeaway with 5–8 crisp bullets; " +
-      "(2) Reader's Suggestion listing EXACTLY 3 similar books (same topic/genre). " +
-      "For Reader's Suggestion, return ONLY book titles and optional author names—NO reasons. " +
-      `Aim for ${desiredWords} total words across the three paragraphs with a +/- ${Math.round(tolerance * 100)}% tolerance. ` +
-      "Output STRICT JSON with keys: summary, readers_takeaway, readers_suggestion. " +
-      "Format readers_suggestion as an array of objects: [{\"title\": string, \"author\"?: string}]. " +
-      "Put ONLY the three paragraphs (separated by blank lines) inside the `summary` string, nothing else.";
+      "You are TRL Summarizer for The Reader's Lawn®.\n" +
+      `Write the MAIN SUMMARY in ${targetLanguage}. It must be exactly three substantial paragraphs separated by one blank line, ` +
+      `totaling about ${desiredWords} words (±${Math.round(tolerance*100)}%). Avoid spoilers where possible.\n` +
+      "After the three paragraphs, also include:\n" +
+      "1) Reader's Takeaway — 5–8 crisp bullets.\n" +
+      "2) Reader's Treat — 4–5 lines introducing the author and mentioning a few of their important works.\n" +
+      "3) Reader's Suggestion — EXACTLY 3 similar books (same topic/genre). Return only titles and optional author names; no reasons.\n" +
+      "Return STRICT JSON with keys: summary, readers_takeaway, readers_treat, readers_suggestion.\n" +
+      "Format readers_suggestion as an array of objects: [{\"title\": string, \"author\"?: string}].\n" +
+      "Put ONLY the three paragraphs (separated by blank lines) inside the `summary` string.";
 
     const userPayload = {
-      title,
-      authors,
-      publishedDate,
-      categories,
+      title, authors, publishedDate, categories,
       descriptionSnippet: (description || '').slice(0, 1200),
     };
 
@@ -164,12 +133,9 @@ export async function POST(req: NextRequest) {
     const out = normalize(obj);
     if (!out) return new Response('Model returned an empty or invalid summary', { status: 502 });
 
-    // Ensure exactly 3 suggestions (if fewer, keep as-is; if more, slice handled in normalize)
     out.readers_suggestion = (out.readers_suggestion || []).slice(0, 3);
 
-    // Save to cache (30 days)
     await kvSet(cacheKey, out);
-
     return new Response(JSON.stringify(out), { status: 200, headers: { 'Content-Type': 'application/json' } });
   } catch (e: any) {
     console.error(e);
