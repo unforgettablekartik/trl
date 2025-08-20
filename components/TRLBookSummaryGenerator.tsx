@@ -381,8 +381,8 @@ export default function TRLBookSummaryGenerator() {
       {/* SEO intro */}
       <section className="trl-hero-seo">
         <p>
-          <strong>{brand.name}</strong> offers AI book summaries: search any book or author and get a
-          3-paragraph (~2,000 words) summary with Reader’s Takeaway, Reader’s Treat, and three similar books.
+          <strong>{brand.name}</strong> offers AI book summaries: Search any book or author and get a
+         2,000-word crisp summary with bonus Reader's Takeaway and Reader's Suggestion.
         </p>
       </section>
 
