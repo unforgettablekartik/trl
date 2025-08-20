@@ -1,5 +1,7 @@
+// app/layout.tsx
 import type { Metadata } from 'next';
 import Script from 'next/script';
+import { Analytics } from '@vercel/analytics/next'; // ← Vercel Web Analytics
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://www.readerslawn.com'),
@@ -74,12 +76,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         {children}
+
+        {/* JSON-LD */}
         <Script id="ld-website" type="application/ld+json" strategy="afterInteractive">
           {JSON.stringify(websiteLd)}
         </Script>
         <Script id="ld-org" type="application/ld+json" strategy="afterInteractive">
           {JSON.stringify(orgLd)}
         </Script>
+
+        {/* Vercel Web Analytics */}
+        <Analytics />
       </body>
     </html>
   );
