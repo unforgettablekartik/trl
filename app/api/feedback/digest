@@ -1,0 +1,81 @@
+// app/api/feedback/digest/route.ts
+import { NextRequest } from 'next/server';
+
+const KV_URL = process.env.UPSTASH_REDIS_REST_URL || '';
+const KV_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || '';
+const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
+const OWNER_EMAIL = process.env.OWNER_EMAIL || '';
+
+async function kvLRange(key: string, start = 0, stop = -1): Promise<string[]> {
+  if (!KV_URL || !KV_TOKEN) return [];
+  const r = await fetch(`${KV_URL}/lrange/${encodeURIComponent(key)}/${start}/${stop}`, {
+    headers: { Authorization: `Bearer ${KV_TOKEN}` }, cache: 'no-store',
+  });
+  const j = await r.json();
+  return j?.result || [];
+}
+
+function istYMD(date = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year:'numeric', month:'2-digit', day:'2-digit' }).format(date);
+  return parts; // yyyy-mm-dd
+}
+function prevDayIST() {
+  const now = new Date();
+  // move back ~27 hours to safely land previous IST day
+  const back = new Date(now.getTime() - 27*60*60*1000);
+  return istYMD(back);
+}
+
+function toCSV(rows: any[]): string {
+  const headers = ['ist','utc','kind','title','authors','language','query','country','region','city','ua'];
+  const esc = (s: any) => `"${String(s ?? '').replace(/"/g,'""')}"`;
+  const lines = [headers.join(',')];
+  for (const r of rows) {
+    lines.push([
+      esc(r.istString), esc(r.isoUTC), esc(r.kind),
+      esc(r.book?.title), esc((r.book?.authors||[]).join('; ')),
+      esc(r.language), esc(r.query || ''),
+      esc(r.location?.country), esc(r.location?.region), esc(r.location?.city),
+      esc(r.ua?.slice(0,200)),
+    ].join(','));
+  }
+  return lines.join('\n');
+}
+
+async function sendEmail(subject: string, text: string) {
+  if (!RESEND_API_KEY || !OWNER_EMAIL) return { sent: false, reason: 'missing creds' };
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${RESEND_API_KEY}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      from: 'TRL Feedback <noreply@readerslawn.com>',
+      to: OWNER_EMAIL,
+      subject,
+      text,
+    })
+  });
+  return { sent: res.ok };
+}
+
+export async function GET(_req: NextRequest) {
+  try {
+    const day = prevDayIST();
+    const key = `trl:fb:${day}`;
+    const raw = await kvLRange(key, 0, -1);
+    const rows = raw.map(s => { try { return JSON.parse(s); } catch { return null; } }).filter(Boolean);
+    const csv = toCSV(rows);
+
+    const subject = `TRL Daily Feedback — ${day} (IST)`;
+    const text = rows.length ? csv : 'No feedback records for the day.';
+    const email = await sendEmail(subject, text);
+
+    return new Response(JSON.stringify({ day, count: rows.length, emailed: email.sent, csv }), {
+      status: 200, headers: { 'Content-Type': 'application/json' }
+    });
+  } catch (e: any) {
+    return new Response(e?.message || 'error', { status: 500 });
+  }
+}
