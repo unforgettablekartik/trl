@@ -8,6 +8,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "@vercel/analytics": "latest",
     "framer-motion": "^11.0.0",
     "lucide-react": "^0.468.0",
     "next": "14.2.5",
