@@ -1,7 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import ReactMarkdown from 'react-markdown';
+import React, { useEffect, useRef, useState } from 'react';
 
 interface BookLite {
   id: string;
@@ -19,33 +18,6 @@ interface SummaryPayload {
   readers_suggestion: Suggestion[];
   readers_treat?: string;
 }
-
-const DESIRED_WORDS = 2000;
-const TOLERANCE = 0.15;
-
-const SUMMARY_LANGS = [
-  { code: 'en', label: 'Default : English' },
-  { code: 'hi', label: 'Hindi' },
-  { code: 'es', label: 'Spanish' },
-  { code: 'fr', label: 'French' },
-  { code: 'de', label: 'German' },
-  { code: 'pt', label: 'Portuguese' },
-  { code: 'it', label: 'Italian' },
-  { code: 'ru', label: 'Russian' },
-  { code: 'ja', label: 'Japanese' },
-  { code: 'zh-Hans', label: 'Chinese (Simplified)' },
-  { code: 'ar', label: 'Arabic' },
-];
-const RTL_LANGS = new Set(['ar', 'he', 'fa', 'ur']);
-
-const brand = {
-  name: "The Reader's Lawn®",
-  logoCandidates: [
-    '/trl-logo.png','/trl-logo.jpg','/trl-logo.jpeg','/trl-logo.webp',
-    '/The%20Reader%27s%20Lawn%20Logo.png','/The%20Reader%27s%20Lawn%20Logo.jpg',
-    "/The Reader's Lawn Logo.png","/The Reader's Lawn Logo.jpg",
-  ],
-};
 
 /* ---------- Amazon affiliate helpers ---------- */
 const AMAZON_LOCALE_MODE = (process.env.NEXT_PUBLIC_AMAZON_LOCALE || 'auto').toLowerCase();
@@ -90,40 +62,7 @@ function amazonSearchUrl(q: string, author?: string): string | null {
   return `https://www.amazon.${tld}/s?k=${query}&i=stripbooks&tag=${encodeURIComponent(tag)}`;
 }
 
-/* ---------- Caches ---------- */
-const summaryCache = {
-  get(key: string): SummaryPayload | null {
-    try { const s = localStorage.getItem(`trl:sum:${key}`); return s ? JSON.parse(s) : null; } catch { return null; }
-  },
-  set(key: string, value: SummaryPayload) {
-    try { localStorage.setItem(`trl:sum:${key}`, JSON.stringify(value)); } catch {}
-  }
-};
-const searchCache = {
-  get(q: string): BookLite[] | null {
-    try { const s = sessionStorage.getItem(`trl:search:${q.toLowerCase()}`); return s ? JSON.parse(s) : null; } catch { return null; }
-  },
-  set(q: string, v: BookLite[]) {
-    try { sessionStorage.setItem(`trl:search:${q.toLowerCase()}`, JSON.stringify(v)); } catch {}
-  }
-};
-
-/* ---------- UI Components ---------- */
-function Splash({ show, onCancel }: { show: boolean; onCancel: () => void }) {
-  if (!show) return null;
-  return (
-    <div className="trl-splash">
-      <div className="trl-splash__box">
-        <p className="trl-splash__text">Crafting your summary…</p>
-        <button onClick={onCancel}>Cancel</button>
-      </div>
-    </div>
-  );
-}
-
 export default function TRLBookSummaryGenerator() {
-  const [query, setQuery] = useState('');
-  const [books, setBooks] = useState<BookLite[]>([]);
   const [selected, setSelected] = useState<BookLite | null>(null);
 
   function affiliateLinkForSelected(): string | null {
@@ -133,23 +72,21 @@ export default function TRLBookSummaryGenerator() {
 
   return (
     <>
-      {/* Example output */}
       {selected && (
         <div className="trl-out">
           <div className="trl-summary__bar">
-            {/* Amazon pill CTA */}
+            {/* Amazon CTA: Bold text only */}
             {affiliateLinkForSelected() && (
               <div className="trl-bar-center">
                 <a
-                  className="trl-cta cta-amz"
+                  className="trl-cta-text"
                   href={affiliateLinkForSelected()!}
                   target="_blank"
                   rel="nofollow noopener"
                   aria-label="Buy on Amazon"
                   title="Buy on Amazon"
                 >
-                  <div className="buyon-text">Buy on</div>
-                  <img src="/amazon-logo.png" alt="Amazon" className="amazon-logo" />
+                  Buy on Amazon
                 </a>
               </div>
             )}
@@ -164,33 +101,19 @@ export default function TRLBookSummaryGenerator() {
           align-items: center;
           flex: 1;
         }
-        .trl-cta {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          background: #fff;
-          border: 1px solid var(--brand-600);
-          border-radius: 9999px; /* pill shape */
+        .trl-cta-text {
+          font-size: 14px;
+          font-weight: 700;
+          color: var(--brand-700); /* matches palette */
           text-decoration: none;
           padding: 6px 14px;
-          box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+          border: 1px solid var(--brand-600);
+          border-radius: 9999px; /* pill style */
           transition: background 0.2s ease, transform 0.1s ease;
         }
-        .trl-cta:hover {
+        .trl-cta-text:hover {
           background: #F0FDFF;
           transform: translateY(-1px);
-        }
-        .buyon-text {
-          font-size: 12px;
-          font-weight: 600;
-          color: var(--brand-800);
-          margin-bottom: 3px;
-          text-align: center;
-        }
-        .amazon-logo {
-          height: 20px;
-          width: auto;
-          display: block;
         }
       `}</style>
     </>
