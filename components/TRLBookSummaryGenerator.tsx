@@ -619,11 +619,17 @@ export default function TRLBookSummaryGenerator() {
                     )}
                   </div>
 
-                  {/* Buy on [Amazon logo] */}
+                  {/* Amazon badge-only CTA */}
                   {affiliateLinkForSelected() && (
-                    <a className="trl-cta" href={affiliateLinkForSelected()!} target="_blank" rel="nofollow noopener" aria-label="Buy on Amazon" title="Buy on Amazon">
-                      <span className="buyon">Buy on</span>
-                      <img src="/amazon.svg" alt="Amazon" width={60} height={18} />
+                    <a
+                      className="trl-cta cta-amz"
+                      href={affiliateLinkForSelected()!}
+                      target="_blank"
+                      rel="nofollow noopener"
+                      aria-label="Buy on Amazon"
+                      title="Buy on Amazon"
+                    >
+                      <img src="/amazon-logo.svg" alt="Amazon" className="amazon-logo" />
                     </a>
                   )}
 
@@ -782,8 +788,9 @@ export default function TRLBookSummaryGenerator() {
         .trl-lang select{ border:1px solid var(--line); border-radius:10px; padding:6px 8px; }
         .trl-bar-actions{ display:flex; gap:8px; }
         .trl-cta{ justify-self:end; display:inline-flex; align-items:center; gap:6px; background: #fff; color:var(--brand-800); text-decoration:none; font-weight:800; padding:8px 12px; border-radius:12px; border:2px solid var(--brand-700); }
-        .trl-cta .buyon{ font-weight:700; }
         .trl-cta:hover{ background:#ECFDFF; }
+        .cta-amz{ padding:6px 10px; } /* compact for logo-only */
+        .amazon-logo{ height:20px; width:auto; display:block; }
         .trl-target{ grid-column: 1 / -1; font-size:12px; color:var(--muted); }
 
         .trl-summary__hint{ color:var(--muted); font-size:14px; }
