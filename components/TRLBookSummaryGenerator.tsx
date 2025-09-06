@@ -193,9 +193,24 @@ export default function TRLBookSummaryGenerator() {
         } as BookLite;
       });
 
-      setBooks(items); setVisibleCount(5);
-      if (!items.length) setSearchError('No results found. Try a shorter query or different spelling.');
-      return items;
+      // Reorder results: exact matches first, then close matches, then the rest
+      const qLower = q.toLowerCase();
+      const exact = items.filter(b =>
+        b.title.toLowerCase() === qLower ||
+        b.authors.some(a => a.toLowerCase() === qLower)
+      );
+      const close = items.filter(b =>
+        !exact.includes(b) && (
+          b.title.toLowerCase().includes(qLower) ||
+          b.authors.some(a => a.toLowerCase().includes(qLower))
+        )
+      );
+      const rest = items.filter(b => !exact.includes(b) && !close.includes(b));
+      const ordered = [...exact.slice(0, 2), ...close.slice(0, 2), ...rest];
+
+      setBooks(ordered); setVisibleCount(5);
+      if (!ordered.length) setSearchError('No results found. Try a shorter query or different spelling.');
+      return ordered;
     } catch (e: any) {
       if (e?.name !== 'AbortError') { console.error(e); setSearchError('Could not reach the books service. Please try again.'); }
       return [];
