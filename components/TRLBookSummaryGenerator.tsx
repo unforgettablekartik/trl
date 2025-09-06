@@ -18,7 +18,7 @@ interface SummaryPayload {
   summary: string;
   readers_takeaway: string[];
   readers_suggestion: Suggestion[];
-  readers_treat?: string;
+  know_the_author?: string;
 }
 
 /* ---------------- Constants ---------------- */
@@ -225,10 +225,12 @@ export default function TRLBookSummaryGenerator() {
     const take = Array.isArray(m.readers_takeaway) ? m.readers_takeaway : (Array.isArray(m["reader_s_takeaway"]) ? m["reader_s_takeaway"] : []);
     const rs = m.readers_suggestion ?? m["reader_s_suggestion"] ?? [];
     const sugg = normalizeSuggestions(rs);
-    const treat = typeof m.readers_treat === 'string' ? m.readers_treat :
-      (Array.isArray(m.readers_treat) ? m.readers_treat.join(' ') : '');
+    const know = typeof m.know_the_author === 'string' ? m.know_the_author :
+      (Array.isArray(m.know_the_author) ? m.know_the_author.join(' ') :
+        (typeof m.readers_treat === 'string' ? m.readers_treat :
+          (Array.isArray(m.readers_treat) ? m.readers_treat.join(' ') : '')));
     if (!summaryText) return null;
-    return { summary: summaryText, readers_takeaway: take, readers_suggestion: sugg, readers_treat: treat };
+    return { summary: summaryText, readers_takeaway: take, readers_suggestion: sugg, know_the_author: know };
   }
 
   function cacheKey(b: BookLite, lang: string) {
@@ -404,7 +406,7 @@ export default function TRLBookSummaryGenerator() {
       <section className="trl-hero-seo">
         <p>
           <strong>{brand.name}</strong> offers AI book summaries: Search any book or author and get a
-          2,000‑word crisp summary with bonus Reader&apos;s Takeaway and Reader&apos;s Suggestion.
+          2,000‑word crisp summary with bonus Know the Author, Reader&apos;s Takeaways and Reader&apos;s Suggestion.
         </p>
       </section>
 
@@ -502,31 +504,9 @@ export default function TRLBookSummaryGenerator() {
             </div>
           )}
 
-          {/* Output */}
-          {selected && (
-            <div className="trl-out" dir={isRtl ? 'rtl' : 'ltr'}>
-              <Card className="trl-summary">
-                <div className="trl-summary__bar">
-                  <div className="trl-bar-actions">
-                    {!loadingSummary ? (
-                      <Button onClick={handleGenerate}>Generate</Button>
-                    ) : (
-                      <Button variant="soft" onClick={cancelSummary}>Cancel Request</Button>
-                    )}
-                  </div>
-                  <div className="trl-target">Target: ~{DESIRED_WORDS} words • 3 paragraphs</div>
-                </div>
+          {summaryError && <div className="trl-error" style={{marginTop: '16px'}}>{summaryError}</div>}
 
-                {summaryError && <div className="trl-error">{summaryError}</div>}
-
-                {!summary && !loadingSummary && (
-                  <div className="trl-summary__hint">Click Generate to create a 3‑paragraph (~2,000 words) summary with Takeaways, Reader’s Treat & Suggestions.</div>
-                )}
-              </Card>
-            </div>
-          )}
-
-      <div className="trl-footer">Built for <b>{brand.name}</b>. Summaries are AI-generated; verify critical facts.</div>
+       <div className="trl-footer">Built for <b>{brand.name}</b>. Summaries are AI-generated; verify critical facts.</div>
         </div>
       </main>
 
@@ -572,14 +552,14 @@ export default function TRLBookSummaryGenerator() {
               <h2>Summary</h2>
               <ReactMarkdown>{summary.summary}</ReactMarkdown>
 
-              {summary.readers_treat ? (
+              {summary.know_the_author ? (
                 <>
-                  <h3>Reader&apos;s Treat</h3>
-                  <p style={{marginTop: '-4px'}}>{summary.readers_treat}</p>
+                  <h3>Know the Author</h3>
+                  <p style={{marginTop: '-4px'}}>{summary.know_the_author}</p>
                 </>
               ) : null}
 
-              <h3>Reader&apos;s Takeaway</h3>
+              <h3>Reader&apos;s Takeaways</h3>
               <ul>{summary.readers_takeaway?.map((t, i) => <li key={i}>{t}</li>)}</ul>
 
               <h3>Reader&apos;s Suggestion</h3>
@@ -688,16 +668,6 @@ export default function TRLBookSummaryGenerator() {
         .trl-item__meta{ font-size:13px; color: var(--muted); margin:2px 0 8px; }
         .trl-item__desc{ font-size:14px; color: var(--ink); opacity:.85; }
         .trl-item__actions{ display:flex; gap:8px; margin-top:10px; }
-
-        .trl-out{ display:grid; grid-template-columns: 1fr; gap:16px; margin-top:24px; }
-        @media (min-width: 900px){ .trl-out{ grid-template-columns: 1fr 2fr; } }
-
-        .trl-summary{ padding:14px; }
-        .trl-summary__bar{ display:flex; flex-direction:column; align-items:center; gap:10px; margin-bottom:12px; }
-        .trl-bar-actions{ display:flex; gap:8px; }
-        .trl-target{ font-size:12px; color:var(--muted); }
-
-        .trl-summary__hint{ color:var(--muted); font-size:14px; text-align:center; }
 
         .trl-prose h2{ margin:16px 0 8px; font-size: clamp(18px, 3.2vw, 20px); color: var(--brand-800); font-weight:800; }
         .trl-prose h3{ margin:14px 0 6px; font-size: clamp(15px, 2.6vw, 16px); color: var(--brand-800); font-weight:700; }

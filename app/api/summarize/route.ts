@@ -68,11 +68,13 @@ function normalize(raw: any) {
   const readers_takeaway = Array.isArray(map['readers_takeaway']) ? map['readers_takeaway']
     : (Array.isArray(map["reader_s_takeaway"]) ? map["reader_s_takeaway"] : []);
   const readers_suggestion = normalizeSuggestions(map['readers_suggestion'] ?? map['reader_s_suggestion'] ?? []);
-  let readers_treat = '';
-  if (typeof map['readers_treat'] === 'string') readers_treat = map['readers_treat'];
-  else if (Array.isArray(map['readers_treat'])) readers_treat = map['readers_treat'].join(' ');
+  let know_the_author = '';
+  if (typeof map['know_the_author'] === 'string') know_the_author = map['know_the_author'];
+  else if (Array.isArray(map['know_the_author'])) know_the_author = map['know_the_author'].join(' ');
+  else if (typeof map['readers_treat'] === 'string') know_the_author = map['readers_treat'];
+  else if (Array.isArray(map['readers_treat'])) know_the_author = map['readers_treat'].join(' ');
   if (!summary) return null;
-  return { summary, readers_takeaway, readers_suggestion, readers_treat };
+  return { summary, readers_takeaway, readers_suggestion, know_the_author };
 }
 
 export async function POST(req: NextRequest) {
@@ -98,13 +100,14 @@ export async function POST(req: NextRequest) {
 
     const sys =
       "You are TRL Summarizer for The Reader's Lawn®.\n" +
-      `Write the MAIN SUMMARY in ${targetLanguage}. It must be exactly three substantial paragraphs separated by one blank line, ` +
-      `totaling about ${desiredWords} words (±${Math.round(tolerance*100)}%). Avoid spoilers where possible.\n` +
-      "After the three paragraphs, also include:\n" +
-      "1) Reader's Takeaway — 5–8 crisp bullets.\n" +
-      "2) Reader's Treat — 4–5 lines introducing the author and mentioning a few of their important works.\n" +
+      `Generate an engaging summary in ${targetLanguage} of about ${desiredWords} words (±${Math.round(tolerance*100)}%). ` +
+      "Weave in brief excerpts and include 4–5 notable quotes from the book.\n" +
+      "Structure the main summary in exactly three substantial paragraphs separated by one blank line.\n" +
+      "After the summary, also include:\n" +
+      "1) Reader's Takeaways — EXACTLY 5 key takeaways. Each should be 3–4 lines highlighting the book's best insights.\n" +
+      "2) Know the Author — 4–5 lines introducing the author and mentioning a few of their important works.\n" +
       "3) Reader's Suggestion — EXACTLY 3 similar books (same topic/genre). Return only titles and optional author names; no reasons.\n" +
-      "Return STRICT JSON with keys: summary, readers_takeaway, readers_treat, readers_suggestion.\n" +
+      "Return STRICT JSON with keys: summary, readers_takeaway, know_the_author, readers_suggestion.\n" +
       "Format readers_suggestion as an array of objects: [{\"title\": string, \"author\"?: string}].\n" +
       "Put ONLY the three paragraphs (separated by blank lines) inside the `summary` string.";
 
