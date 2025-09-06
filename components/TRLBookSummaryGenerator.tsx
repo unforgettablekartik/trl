@@ -514,7 +514,7 @@ export default function TRLBookSummaryGenerator() {
                             </Button>
                           )}
                           {isSelected && !hasGenerated && (
-                            <Button variant="outline" onClick={handleGenerate} disabled={loadingSummary}>
+                            <Button variant="outline" onClick={() => handleGenerate()} disabled={loadingSummary}>
                               {loadingSummary ? 'Generating…' : 'Generate Summary'}
                             </Button>
                           )}
