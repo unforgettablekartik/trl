@@ -25,8 +25,6 @@ interface SummaryPayload {
 const DESIRED_WORDS = 2000;
 const TOLERANCE = 0.15;
 
-// Summary language selection removed; defaulting to English only
-
 const brand = {
   name: "The Reader's Lawn®",
   logoCandidates: [
@@ -36,7 +34,15 @@ const brand = {
   ],
 };
 
-// Amazon affiliate links removed per latest requirements
+const LANG_OPTIONS = [
+  { code: 'en', label: 'English' },
+  { code: 'es', label: 'Spanish' },
+  { code: 'fr', label: 'French' },
+  { code: 'de', label: 'German' },
+  { code: 'hi', label: 'Hindi' },
+  { code: 'ar', label: 'Arabic' },
+];
+const AMAZON_TAG = 'thereaderslawn-20';
 
 /* ---------------- Small UI primitives ---------------- */
 const Button = ({
@@ -103,7 +109,7 @@ export default function TRLBookSummaryGenerator() {
   const [query, setQuery] = useState('');
   const debouncedQuery = useDebounced(query);
   const [searchAllLangs, setSearchAllLangs] = useState(false);
-  const summaryLang = 'en';
+  const [summaryLang, setSummaryLang] = useState('en');
 
   const [books, setBooks] = useState<BookLite[]>([]);
   const [loadingSearch, setLoadingSearch] = useState(false);
@@ -124,7 +130,7 @@ export default function TRLBookSummaryGenerator() {
   const abortSummaryRef = useRef<AbortController | null>(null);
   const summaryBlockRef = useRef<HTMLDivElement | null>(null);
 
-  const isRtl = false;
+  const isRtl = useMemo(() => ['ar','he','fa','ur'].includes(summaryLang), [summaryLang]);
 
   function resetToHome() {
     setQuery('');
@@ -541,6 +547,32 @@ export default function TRLBookSummaryGenerator() {
                 </div>
               </div>
             )}
+            <div className="trl-summary-canvas__controls">
+              <div className="trl-summary-canvas__controls-center">
+                <select
+                  className="trl-summary-canvas__language"
+                  value={summaryLang}
+                  onChange={(e) => setSummaryLang(e.target.value)}
+                >
+                  {LANG_OPTIONS.map((l) => (
+                    <option key={l.code} value={l.code}>{l.label}</option>
+                  ))}
+                </select>
+                <Button variant="outline" onClick={handleGenerate} disabled={loadingSummary}>
+                  Regenerate
+                </Button>
+              </div>
+              {selected && (
+                <a
+                  className="trl-btn trl-btn--outline trl-summary-canvas__amazon"
+                  href={`https://www.amazon.com/s?k=${encodeURIComponent(selected.title + ' ' + (selected.authors?.[0] || ''))}&tag=${AMAZON_TAG}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Buy on Amazon
+                </a>
+              )}
+            </div>
             <div
               ref={summaryBlockRef}
               className="trl-prose no-copy trl-summary-canvas__body"
@@ -552,15 +584,15 @@ export default function TRLBookSummaryGenerator() {
               <h2>Summary</h2>
               <ReactMarkdown>{summary.summary}</ReactMarkdown>
 
+              <h3>Reader&apos;s Takeaways</h3>
+              <ul>{summary.readers_takeaway?.map((t, i) => <li key={i}>{t}</li>)}</ul>
+
               {summary.know_the_author ? (
                 <>
                   <h3>Know the Author</h3>
                   <p style={{marginTop: '-4px'}}>{summary.know_the_author}</p>
                 </>
               ) : null}
-
-              <h3>Reader&apos;s Takeaways</h3>
-              <ul>{summary.readers_takeaway?.map((t, i) => <li key={i}>{t}</li>)}</ul>
 
               <h3>Reader&apos;s Suggestion</h3>
               <ul>
@@ -697,6 +729,10 @@ export default function TRLBookSummaryGenerator() {
         .trl-summary-canvas__info{ flex:1; display:flex; flex-direction:column; gap:4px; }
         .trl-summary-canvas__title{ margin:0; font-size:20px; line-height:1.2; }
         .trl-summary-canvas__meta{ margin:0; font-size:13px; color:var(--muted); }
+        .trl-summary-canvas__controls{ display:flex; align-items:center; padding:0 16px 16px; gap:8px; }
+        .trl-summary-canvas__controls-center{ flex:1; display:flex; justify-content:center; gap:8px; }
+        .trl-summary-canvas__language{ padding:6px; border:1px solid var(--line); border-radius:6px; }
+        .trl-summary-canvas__amazon{ margin-left:auto; text-decoration:none; }
         .trl-summary-canvas__body{ padding:0 16px 60px; }
         .trl-summary-canvas__footer{ margin-top:20px; display:flex; justify-content:center; }
         @keyframes trl-canvas-drop{ from{ transform:scaleY(0);} to{ transform:scaleY(1);} }
