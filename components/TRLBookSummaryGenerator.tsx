@@ -367,6 +367,13 @@ export default function TRLBookSummaryGenerator() {
     resetToHome();
   }
 
+  function closeSession() {
+    resetToHome();
+    if (typeof window !== 'undefined') {
+      window.location.href = '/';
+    }
+  }
+
   function affiliateLinkForSelected(): string | null {
     if (!selected) return null;
     return amazonSearchUrl(selected.title, (selected.authors || [])[0]);
@@ -629,11 +636,41 @@ export default function TRLBookSummaryGenerator() {
               <button
                 className="trl-summary-canvas__close"
                 aria-label="Close summary"
-                onClick={() => setShowSummary(false)}
+                onClick={closeSession}
               >
                 ×
               </button>
             </div>
+            {selected && (
+              <div className="trl-summary-canvas__top">
+                <img
+                  src={selected.thumbnail || 'https://placehold.co/128x192?text=No+Cover'}
+                  alt={selected.title}
+                  className="trl-summary-canvas__cover"
+                />
+                <div className="trl-summary-canvas__controls">
+                  <div className="trl-lang">
+                    <label htmlFor="canvas-lang">Language:</label>
+                    <select
+                      id="canvas-lang"
+                      value={summaryLang}
+                      onChange={(e) => {
+                        const lang = e.target.value;
+                        setSummaryLang(lang);
+                        setTimeout(() => handleGenerate(), 0);
+                      }}
+                    >
+                      {SUMMARY_LANGS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
+                    </select>
+                  </div>
+                  {affiliateLinkForSelected() && (
+                    <a className="trl-cta" href={affiliateLinkForSelected()!} target="_blank" rel="noopener noreferrer">
+                      Buy on Amazon
+                    </a>
+                  )}
+                </div>
+              </div>
+            )}
             <div
               ref={summaryBlockRef}
               className="trl-prose no-copy trl-summary-canvas__body"
@@ -689,18 +726,9 @@ export default function TRLBookSummaryGenerator() {
               </div>
 
               <div className="trl-summary-canvas__footer">
-                <Button onClick={() => setShowSummary(false)}>Close</Button>
+                <Button onClick={closeSession}>Close</Button>
               </div>
             </div>
-            <svg className="trl-summary-canvas__grass" viewBox="0 0 100 20" preserveAspectRatio="none" aria-hidden="true">
-              <defs>
-                <linearGradient id="grassGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#a5d6a7" />
-                  <stop offset="100%" stopColor="#2e7d32" />
-                </linearGradient>
-              </defs>
-              <path d="M0 20 L0 12 Q5 2 10 12 T20 12 T30 12 T40 12 T50 12 T60 12 T70 12 T80 12 T90 12 T100 12 L100 20 Z" fill="url(#grassGrad)" />
-            </svg>
           </div>
         </div>
       )}
@@ -818,13 +846,15 @@ export default function TRLBookSummaryGenerator() {
         .trl-footer{ text-align:center; font-size:12px; color:var(--muted); margin-top:28px; }
 
         .trl-summary-backdrop{ position:fixed; inset:0; background:rgba(0,0,0,.8); z-index:70; display:flex; justify-content:center; align-items:flex-start; overflow-y:auto; }
-        .trl-summary-canvas{ position:relative; background:#fff; margin:40px auto; width:min(90vw,500px); border-radius:8px; overflow:hidden; animation:trl-canvas-drop .3s ease-out; transform-origin:top; }
+        .trl-summary-canvas{ position:relative; background:#fff; margin:40px auto; width:min(90vw,625px); border-radius:8px; overflow:hidden; animation:trl-canvas-drop .3s ease-out; transform-origin:top; }
         .trl-summary-canvas__header{ display:flex; align-items:center; gap:8px; padding:16px; }
         .trl-summary-canvas__logo{ height:32px; width:auto; }
         .trl-summary-canvas__close{ background:none; border:none; font-size:24px; line-height:1; cursor:pointer; margin-left:auto; }
+        .trl-summary-canvas__top{ display:flex; flex-direction:column; align-items:center; gap:12px; padding:0 16px 16px; }
+        .trl-summary-canvas__cover{ width:160px; height:auto; border-radius:8px; box-shadow:0 1px 4px rgba(0,0,0,.1); }
+        .trl-summary-canvas__controls{ display:flex; flex-direction:column; align-items:center; gap:8px; }
         .trl-summary-canvas__body{ padding:0 16px 60px; max-height:80vh; overflow-y:auto; }
         .trl-summary-canvas__footer{ margin-top:20px; display:flex; justify-content:center; }
-        .trl-summary-canvas__grass{ position:absolute; bottom:0; left:0; width:100%; height:150px; }
         @keyframes trl-canvas-drop{ from{ transform:scaleY(0);} to{ transform:scaleY(1);} }
 
         .trl-splash{ position:fixed; inset:0; z-index:60; display:grid; place-items:center; background:rgba(255,255,255,.9); backdrop-filter: blur(6px); }
