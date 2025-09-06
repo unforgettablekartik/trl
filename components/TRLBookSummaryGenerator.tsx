@@ -793,9 +793,9 @@ export default function TRLBookSummaryGenerator() {
         .trl-summary-canvas__left{ display:flex; flex-direction:column; align-items:center; gap:8px; }
         .trl-summary-canvas__language{ padding:6px; border:1px solid var(--line); border-radius:6px; width:120px; }
         .trl-summary-canvas__langhint{ font-size:13px; color:var(--muted); margin:0 0 4px; text-align:center; width:100%; }
-        .trl-summary-canvas__regen{ margin-top:auto; width:120px; display:flex; flex-direction:column; align-items:center; gap:8px; }
+        .trl-summary-canvas__regen{ margin-top:auto; width:120px; display:flex; flex-direction:column; align-items:center; gap:8px; align-self:center; }
         .trl-summary-canvas__amazon{ display:block; width:100%; text-align:center; text-decoration:none; margin-top:auto; }
-        .trl-suggestions{ display:flex; gap:16px; flex-wrap:wrap; margin-top:8px; }
+        .trl-suggestions{ display:flex; gap:24px; flex-wrap:wrap; justify-content:center; margin-top:8px; }
         .trl-suggestion-card{ width:150px; display:flex; flex-direction:column; align-items:center; text-align:center; }
         .trl-suggestion-card__img{ width:100%; height:auto; border-radius:4px; }
         .trl-suggestion-card__title{ font-weight:600; margin-top:6px; }
