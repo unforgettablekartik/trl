@@ -106,7 +106,7 @@ export async function POST(req: NextRequest) {
       "After the summary, also include:\n" +
       "1) Reader's Takeaways — EXACTLY 5 key takeaways. Each should be 3–4 lines highlighting the book's best insights.\n" +
       "2) Know the Author — 4–5 lines introducing the author and mentioning a few of their important works.\n" +
-      "3) Reader's Suggestion — EXACTLY 3 similar books (same topic/genre). Return only titles and optional author names; no reasons.\n" +
+      "3) Reader's Suggestions — EXACTLY 3 similar books (same topic/genre). Return only titles and optional author names; no reasons.\n" +
       "Return STRICT JSON with keys: summary, readers_takeaway, know_the_author, readers_suggestion.\n" +
       "Format readers_suggestion as an array of objects: [{\"title\": string, \"author\"?: string}].\n" +
       "Put ONLY the three paragraphs (separated by blank lines) inside the `summary` string.";

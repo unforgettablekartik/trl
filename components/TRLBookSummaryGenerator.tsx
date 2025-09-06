@@ -148,8 +148,11 @@ export default function TRLBookSummaryGenerator() {
     }
   }
 
-  async function doSearch(q: string) {
-    if (!q || q.trim().length < 2) { setBooks([]); setVisibleCount(5); setSearchError(null); return; }
+  async function doSearch(q: string): Promise<BookLite[]> {
+    if (!q || q.trim().length < 2) {
+      setBooks([]); setVisibleCount(5); setSearchError(null);
+      return [];
+    }
     try {
       setLoadingSearch(true); setSearchError(null);
       abortSearchRef.current?.abort();
@@ -192,8 +195,10 @@ export default function TRLBookSummaryGenerator() {
 
       setBooks(items); setVisibleCount(5);
       if (!items.length) setSearchError('No results found. Try a shorter query or different spelling.');
+      return items;
     } catch (e: any) {
       if (e?.name !== 'AbortError') { console.error(e); setSearchError('Could not reach the books service. Please try again.'); }
+      return [];
     } finally {
       setLoadingSearch(false);
     }
@@ -243,14 +248,16 @@ export default function TRLBookSummaryGenerator() {
     return `trl:sum:${(b.title || '').toLowerCase()}|${(b.authors?.[0] || '').toLowerCase()}|${lang}`;
   }
 
-  async function handleGenerate() {
-    if (!selected) return;
+  async function handleGenerate(b?: BookLite) {
+    const book = b || selected;
+    if (!book) return;
+    setSelected(book);
     setHasGenerated(true);
     setLoadingSummary(true); setSummary(null); setSummaryError(null);
 
     // Local cache check (client-side)
     try {
-      const key = cacheKey(selected, summaryLang);
+      const key = cacheKey(book, summaryLang);
       const cached = typeof window !== 'undefined' ? localStorage.getItem(key) : null;
       if (cached) {
         const parsed = JSON.parse(cached);
@@ -270,11 +277,11 @@ export default function TRLBookSummaryGenerator() {
     abortSummaryRef.current = ac;
 
     const body = {
-      title: selected.title,
-      authors: selected.authors,
-      publishedDate: selected.publishedDate,
-      description: selected.description,
-      categories: selected.categories,
+      title: book.title,
+      authors: book.authors,
+      publishedDate: book.publishedDate,
+      description: book.description,
+      categories: book.categories,
       desiredWords: DESIRED_WORDS,
       tolerance: TOLERANCE,
       language: summaryLang,
@@ -298,7 +305,7 @@ export default function TRLBookSummaryGenerator() {
           setShowSummary(true);
           // store in cache
           try {
-            const key = cacheKey(selected, summaryLang);
+            const key = cacheKey(book, summaryLang);
             localStorage.setItem(key, JSON.stringify(raw));
           } catch {}
         } else {
@@ -387,6 +394,22 @@ export default function TRLBookSummaryGenerator() {
     if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
+  async function handleSuggestionGenerate(s: Suggestion) {
+    const q = s.title;
+    setQuery(q);
+    setSelected(null);
+    setHasGenerated(false);
+    setSummary(null);
+    setSummaryError(null);
+    setBooks([]);
+    const items = await doSearch(q);
+    if (items.length) {
+      setSelected(items[0]);
+      await handleGenerate(items[0]);
+    }
+    if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
   /* ---------------- Render ---------------- */
   return (
     <>
@@ -412,7 +435,7 @@ export default function TRLBookSummaryGenerator() {
       <section className="trl-hero-seo">
         <p>
           <strong>{brand.name}</strong> offers AI book summaries: Search any book or author and get a
-          2,000‑word crisp summary with bonus Know the Author, Reader&apos;s Takeaways and Reader&apos;s Suggestion.
+          2,000‑word crisp summary with Reader&apos;s Takeaways and Suggestions.
         </p>
       </section>
 
@@ -554,8 +577,8 @@ export default function TRLBookSummaryGenerator() {
                   {selected.categories?.[0] ? (
                     <p className="trl-summary-canvas__meta">{selected.categories[0]}</p>
                   ) : null}
-                  <p className="trl-summary-canvas__langhint">Language Options</p>
-                  <div className="trl-summary-canvas__langcontrols">
+                  <div className="trl-summary-canvas__langblock">
+                    <p className="trl-summary-canvas__langhint">Language Options</p>
                     <select
                       className="trl-summary-canvas__language"
                       value={summaryLang}
@@ -565,8 +588,14 @@ export default function TRLBookSummaryGenerator() {
                         <option key={l.code} value={l.code}>{l.label}</option>
                       ))}
                     </select>
-                    <Button variant="outline" onClick={handleGenerate} disabled={loadingSummary}>
-                      Regenerate
+                  </div>
+                  <div className="trl-summary-canvas__regen">
+                    <Button
+                      variant="outline"
+                      onClick={() => handleGenerate()}
+                      disabled={loadingSummary}
+                    >
+                      Regenerate Summary
                     </Button>
                   </div>
                 </div>
@@ -593,10 +622,10 @@ export default function TRLBookSummaryGenerator() {
                 </>
               ) : null}
 
-              <h3>Reader&apos;s Suggestion</h3>
+              <h3>Reader&apos;s Suggestions</h3>
               <ul>
                 {(summary.readers_suggestion || []).slice(0,3).map((s, i) => (
-                  <li key={i}>
+                  <li key={i} className="trl-suggestion__item">
                     {/* Clicking the title triggers a fresh search in-app */}
                     <button
                       className="linklike"
@@ -607,6 +636,12 @@ export default function TRLBookSummaryGenerator() {
                       <span className="emph">{s.title}</span>
                     </button>
                     {s.author ? ` by ${s.author}` : ''}{' '}
+                    <button
+                      className="trl-btn trl-btn--outline trl-suggestion__generate"
+                      onClick={() => handleSuggestionGenerate(s)}
+                    >
+                      Generate Summary
+                    </button>{' '}
                     <a
                       className="trl-btn trl-btn--outline trl-suggestion__amazon"
                       href={`https://www.amazon.com/s?k=${encodeURIComponent(s.title + ' ' + (s.author || ''))}&tag=${AMAZON_TAG}`}
@@ -737,10 +772,13 @@ export default function TRLBookSummaryGenerator() {
         .trl-summary-canvas__title{ margin:0; font-size:20px; line-height:1.2; }
         .trl-summary-canvas__meta{ margin:0; font-size:13px; color:var(--muted); }
         .trl-summary-canvas__left{ display:flex; flex-direction:column; align-items:center; gap:8px; }
-        .trl-summary-canvas__language{ padding:6px; border:1px solid var(--line); border-radius:6px; }
+        .trl-summary-canvas__langblock{ margin-top:4px; display:inline-flex; flex-direction:column; width:max-content; }
+        .trl-summary-canvas__language{ padding:6px; border:1px solid var(--line); border-radius:6px; width:140px; }
         .trl-summary-canvas__langhint{ margin-top:8px; font-size:13px; color:var(--muted); }
-        .trl-summary-canvas__langcontrols{ margin-top:4px; display:flex; align-items:center; gap:8px; }
+        .trl-summary-canvas__regen{ margin-top:8px; margin-left:auto; width:140px; }
         .trl-summary-canvas__amazon{ display:block; width:100%; text-align:center; text-decoration:none; }
+        .trl-suggestion__item{ margin-bottom:8px; }
+        .trl-suggestion__generate{ margin-left:8px; text-decoration:none; }
         .trl-suggestion__amazon{ margin-left:8px; text-decoration:none; }
         .trl-summary-canvas__body{ padding:0 16px 60px; }
         .trl-summary-canvas__footer{ margin-top:20px; display:flex; justify-content:center; }
