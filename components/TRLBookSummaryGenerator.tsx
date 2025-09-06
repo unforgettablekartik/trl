@@ -132,6 +132,13 @@ export default function TRLBookSummaryGenerator() {
 
   const isRtl = useMemo(() => ['ar','he','fa','ur'].includes(summaryLang), [summaryLang]);
 
+  useEffect(() => {
+    // Ensure a clean landing experience
+    setShowSummary(false);
+    setSelected(null);
+    setSummary(null);
+  }, []);
+
   function resetToHome() {
     setQuery('');
     setBooks([]);
@@ -491,7 +498,6 @@ export default function TRLBookSummaryGenerator() {
                   SEARCH
                 </Button>
               </div>
-              <div className="trl-help">Top 5 suggestions appear below. Use the button to load 5 more.</div>
               {searchError && <div className="trl-error">{searchError}</div>}
             </div>
           </Card>
@@ -639,30 +645,33 @@ export default function TRLBookSummaryGenerator() {
               <ul>
                 {(summary.readers_suggestion || []).slice(0,3).map((s, i) => (
                   <li key={i} className="trl-suggestion__item">
-                    {/* Clicking the title triggers a fresh search in-app */}
-                    <button
-                      className="linklike"
-                      onClick={() => handleSuggestionClick(s)}
-                      aria-label={`Search for ${s.title}`}
-                      title={`Search for ${s.title}`}
-                    >
-                      <span className="emph">{s.title}</span>
-                    </button>
-                    {s.author ? ` by ${s.author}` : ''}{' '}
-                    <button
-                      className="trl-btn trl-btn--outline trl-suggestion__generate"
-                      onClick={() => handleSuggestionGenerate(s)}
-                    >
-                      Generate Summary
-                    </button>{' '}
-                    <a
-                      className="trl-btn trl-btn--primary trl-suggestion__amazon"
-                      href={`https://www.amazon.com/s?k=${encodeURIComponent(s.title + ' ' + (s.author || ''))}&tag=${AMAZON_TAG}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      Buy on Amazon
-                    </a>
+                    <div>
+                      <button
+                        className="linklike"
+                        onClick={() => handleSuggestionClick(s)}
+                        aria-label={`Search for ${s.title}`}
+                        title={`Search for ${s.title}`}
+                      >
+                        <span className="emph">{s.title}</span>
+                      </button>
+                      {s.author ? ` by ${s.author}` : ''}
+                    </div>
+                    <div className="trl-suggestion__actions">
+                      <button
+                        className="trl-btn trl-btn--outline trl-suggestion__generate"
+                        onClick={() => handleSuggestionGenerate(s)}
+                      >
+                        Generate Summary
+                      </button>
+                      <a
+                        className="trl-btn trl-btn--primary trl-suggestion__amazon"
+                        href={`https://www.amazon.com/s?k=${encodeURIComponent(s.title + ' ' + (s.author || ''))}&tag=${AMAZON_TAG}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Buy on Amazon
+                      </a>
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -724,7 +733,7 @@ export default function TRLBookSummaryGenerator() {
         .trl-btn--search{ background:#fff; color: var(--brand-800); border-color: var(--brand-700); border-width:2px; letter-spacing:.3px; padding:12px 18px; }
         .trl-btn--search:hover{ background:#ECFDFF; }
 
-        .trl-input{ width:100%; border:1px solid var(--line); border-radius:14px; padding:12px 14px; font-size:14px; outline:none; }
+        .trl-input{ width:100%; border:2px solid var(--brand-800); border-radius:14px; padding:12px 14px; font-size:14px; outline:none; }
         .trl-input:focus{ border-color: var(--brand-500); box-shadow: 0 0 0 3px rgba(6,182,212,.16); }
 
         .trl-card{ background: var(--card); border:1px solid var(--line); border-radius:16px; box-shadow: 0 1px 2px rgba(0,0,0,.03); }
@@ -736,7 +745,6 @@ export default function TRLBookSummaryGenerator() {
         .trl-search__row{ margin-top:8px; }
         .trl-check{ font-size:13px; color: var(--muted); user-select:none; }
         .trl-search__actions{ display:flex; justify-content:center; margin-top:12px; }
-        .trl-help{ margin-top:8px; font-size:12px; color:var(--muted); }
         .trl-error{ margin-top:10px; font-size:13px; color:#B91C1C; background:#FEF2F2; border:1px solid #FECACA; padding:10px 12px; border-radius:12px; }
 
         .trl-grid{ display:grid; grid-template-columns: 1fr; gap:10px; margin-top:16px; }
@@ -789,9 +797,10 @@ export default function TRLBookSummaryGenerator() {
         .trl-summary-canvas__langhint{ font-size:13px; color:var(--muted); margin:0 0 4px; text-align:center; width:100%; }
         .trl-summary-canvas__regen{ margin-top:auto; width:120px; display:flex; flex-direction:column; align-items:center; gap:8px; }
         .trl-summary-canvas__amazon{ display:block; width:100%; text-align:center; text-decoration:none; margin-top:auto; }
-        .trl-suggestion__item{ margin-bottom:8px; }
-        .trl-suggestion__generate{ margin-left:8px; text-decoration:none; }
-        .trl-suggestion__amazon{ margin-left:8px; text-decoration:none; }
+        .trl-suggestion__item{ margin-bottom:12px; }
+        .trl-suggestion__actions{ margin-top:4px; display:flex; gap:8px; }
+        .trl-suggestion__generate{ text-decoration:none; }
+        .trl-suggestion__amazon{ text-decoration:none; }
         .trl-summary-canvas__body{ padding:0 24px 60px; }
         .trl-summary-canvas__footer{ margin-top:20px; display:flex; justify-content:center; }
         @keyframes trl-canvas-drop{ from{ transform:scaleY(0);} to{ transform:scaleY(1);} }
