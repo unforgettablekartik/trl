@@ -577,7 +577,7 @@ export default function TRLBookSummaryGenerator() {
                   {selected.categories?.[0] ? (
                     <p className="trl-summary-canvas__meta">{selected.categories[0]}</p>
                   ) : null}
-                  <div className="trl-summary-canvas__langblock">
+                  <div className="trl-summary-canvas__regen">
                     <p className="trl-summary-canvas__langhint">Language Options</p>
                     <select
                       className="trl-summary-canvas__language"
@@ -588,8 +588,6 @@ export default function TRLBookSummaryGenerator() {
                         <option key={l.code} value={l.code}>{l.label}</option>
                       ))}
                     </select>
-                  </div>
-                  <div className="trl-summary-canvas__regen">
                     <Button
                       variant="outline"
                       onClick={() => handleGenerate()}
@@ -772,11 +770,10 @@ export default function TRLBookSummaryGenerator() {
         .trl-summary-canvas__title{ margin:0; font-size:20px; line-height:1.2; }
         .trl-summary-canvas__meta{ margin:0; font-size:13px; color:var(--muted); }
         .trl-summary-canvas__left{ display:flex; flex-direction:column; align-items:center; gap:8px; }
-        .trl-summary-canvas__langblock{ margin-top:4px; display:inline-flex; flex-direction:column; width:max-content; }
         .trl-summary-canvas__language{ padding:6px; border:1px solid var(--line); border-radius:6px; width:140px; }
-        .trl-summary-canvas__langhint{ margin-top:8px; font-size:13px; color:var(--muted); }
-        .trl-summary-canvas__regen{ margin-top:8px; margin-left:auto; width:140px; }
-        .trl-summary-canvas__amazon{ display:block; width:100%; text-align:center; text-decoration:none; }
+        .trl-summary-canvas__langhint{ font-size:13px; color:var(--muted); margin:0 0 4px; text-align:right; width:100%; }
+        .trl-summary-canvas__regen{ margin-top:auto; margin-left:auto; width:140px; display:flex; flex-direction:column; align-items:flex-end; gap:8px; }
+        .trl-summary-canvas__amazon{ display:block; width:100%; text-align:center; text-decoration:none; margin-top:auto; }
         .trl-suggestion__item{ margin-bottom:8px; }
         .trl-suggestion__generate{ margin-left:8px; text-decoration:none; }
         .trl-suggestion__amazon{ margin-left:8px; text-decoration:none; }
