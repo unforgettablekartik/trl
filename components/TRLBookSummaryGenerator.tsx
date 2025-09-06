@@ -648,26 +648,34 @@ export default function TRLBookSummaryGenerator() {
                   alt={selected.title}
                   className="trl-summary-canvas__cover"
                 />
-                <div className="trl-summary-canvas__controls">
-                  <div className="trl-lang">
-                    <label htmlFor="canvas-lang">Language:</label>
-                    <select
-                      id="canvas-lang"
-                      value={summaryLang}
-                      onChange={(e) => {
-                        const lang = e.target.value;
-                        setSummaryLang(lang);
-                        setTimeout(() => handleGenerate(), 0);
-                      }}
-                    >
-                      {SUMMARY_LANGS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
-                    </select>
+                <div className="trl-summary-canvas__info">
+                  <h2 className="trl-summary-canvas__title">{selected.title}</h2>
+                  {selected.authors?.length ? (
+                    <p className="trl-summary-canvas__meta">{selected.authors.join(', ')}</p>
+                  ) : null}
+                  {selected.categories?.[0] ? (
+                    <p className="trl-summary-canvas__meta">{selected.categories[0]}</p>
+                  ) : null}
+                  <div className="trl-summary-canvas__controls">
+                    <div className="trl-lang">
+                      <label htmlFor="canvas-lang">Language:</label>
+                      <select
+                        id="canvas-lang"
+                        value={summaryLang}
+                        onChange={(e) => setSummaryLang(e.target.value)}
+                      >
+                        {SUMMARY_LANGS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
+                      </select>
+                    </div>
+                    <Button onClick={handleGenerate} disabled={loadingSummary}>
+                      {loadingSummary ? 'Generating…' : 'Regenerate'}
+                    </Button>
+                    {affiliateLinkForSelected() && (
+                      <a className="trl-cta" href={affiliateLinkForSelected()!} target="_blank" rel="noopener noreferrer">
+                        Buy on Amazon
+                      </a>
+                    )}
                   </div>
-                  {affiliateLinkForSelected() && (
-                    <a className="trl-cta" href={affiliateLinkForSelected()!} target="_blank" rel="noopener noreferrer">
-                      Buy on Amazon
-                    </a>
-                  )}
                 </div>
               </div>
             )}
@@ -846,14 +854,17 @@ export default function TRLBookSummaryGenerator() {
         .trl-footer{ text-align:center; font-size:12px; color:var(--muted); margin-top:28px; }
 
         .trl-summary-backdrop{ position:fixed; inset:0; background:rgba(0,0,0,.8); z-index:70; display:flex; justify-content:center; align-items:flex-start; overflow-y:auto; }
-        .trl-summary-canvas{ position:relative; background:#fff; margin:40px auto; width:min(90vw,625px); border-radius:8px; overflow:hidden; animation:trl-canvas-drop .3s ease-out; transform-origin:top; }
+        .trl-summary-canvas{ position:relative; background:#fff; margin:40px auto; width:min(90vw,780px); border-radius:8px; overflow:hidden; animation:trl-canvas-drop .3s ease-out; transform-origin:top; }
         .trl-summary-canvas__header{ display:flex; align-items:center; gap:8px; padding:16px; }
         .trl-summary-canvas__logo{ height:32px; width:auto; }
         .trl-summary-canvas__close{ background:none; border:none; font-size:24px; line-height:1; cursor:pointer; margin-left:auto; }
-        .trl-summary-canvas__top{ display:flex; flex-direction:column; align-items:center; gap:12px; padding:0 16px 16px; }
-        .trl-summary-canvas__cover{ width:160px; height:auto; border-radius:8px; box-shadow:0 1px 4px rgba(0,0,0,.1); }
-        .trl-summary-canvas__controls{ display:flex; flex-direction:column; align-items:center; gap:8px; }
-        .trl-summary-canvas__body{ padding:0 16px 60px; max-height:80vh; overflow-y:auto; }
+        .trl-summary-canvas__top{ display:flex; align-items:flex-start; gap:16px; padding:0 16px 16px; }
+        .trl-summary-canvas__cover{ width:120px; height:auto; border-radius:8px; box-shadow:0 1px 4px rgba(0,0,0,.1); }
+        .trl-summary-canvas__info{ flex:1; display:flex; flex-direction:column; gap:4px; }
+        .trl-summary-canvas__title{ margin:0; font-size:20px; line-height:1.2; }
+        .trl-summary-canvas__meta{ margin:0; font-size:13px; color:var(--muted); }
+        .trl-summary-canvas__controls{ display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:8px; }
+        .trl-summary-canvas__body{ padding:0 16px 60px; }
         .trl-summary-canvas__footer{ margin-top:20px; display:flex; justify-content:center; }
         @keyframes trl-canvas-drop{ from{ transform:scaleY(0);} to{ transform:scaleY(1);} }
 
