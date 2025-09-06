@@ -130,7 +130,7 @@ function SuggestionCard({ suggestion, onGenerate }: { suggestion: Suggestion; on
       {thumb && <img src={thumb} alt={`Cover of ${suggestion.title}`} className="trl-suggestion-card__img" />}
       <div className="trl-suggestion-card__title">{suggestion.title}</div>
       {suggestion.author && <div className="trl-suggestion-card__author">{suggestion.author}</div>}
-      <Button variant="outline" onClick={() => onGenerate(suggestion)}>Generate Summary</Button>
+      <Button variant="outline" onClick={() => onGenerate(suggestion)}>Summarize Now</Button>
       <a
         className="trl-btn trl-btn--primary"
         href={`https://www.amazon.com/s?k=${encodeURIComponent(suggestion.title + ' ' + (suggestion.author || ''))}&tag=${AMAZON_TAG}`}
@@ -795,12 +795,13 @@ export default function TRLBookSummaryGenerator() {
         .trl-summary-canvas__langhint{ font-size:13px; color:var(--muted); margin:0 0 4px; text-align:center; width:100%; }
         .trl-summary-canvas__regen{ margin-top:auto; width:120px; display:flex; flex-direction:column; align-items:center; gap:8px; align-self:center; }
         .trl-summary-canvas__amazon{ display:block; width:100%; text-align:center; text-decoration:none; margin-top:auto; }
-        .trl-suggestions{ display:flex; gap:24px; flex-wrap:wrap; justify-content:center; margin-top:8px; }
+        .trl-suggestions{ display:flex; gap:30px; flex-wrap:wrap; justify-content:center; margin-top:8px; }
         .trl-suggestion-card{ width:150px; display:flex; flex-direction:column; align-items:center; text-align:center; }
         .trl-suggestion-card__img{ width:100%; height:auto; border-radius:4px; }
         .trl-suggestion-card__title{ font-weight:600; margin-top:6px; }
         .trl-suggestion-card__author{ font-size:14px; color:var(--muted); margin-bottom:8px; }
         .trl-suggestion-card .trl-btn{ width:100%; margin-top:4px; text-decoration:none; }
+        .trl-suggestion-card .trl-btn--primary{ width:80%; margin-left:10%; margin-right:10%; }
         .trl-summary-canvas__body{ padding:0 24px 60px; }
         .trl-summary-canvas__footer{ margin-top:20px; display:flex; justify-content:center; }
         @keyframes trl-canvas-drop{ from{ transform:scaleY(0);} to{ transform:scaleY(1);} }
