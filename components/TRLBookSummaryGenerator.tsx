@@ -531,11 +531,21 @@ export default function TRLBookSummaryGenerator() {
             </div>
             {selected && (
               <div className="trl-summary-canvas__top">
-                <img
-                  src={selected.thumbnail || 'https://placehold.co/128x192?text=No+Cover'}
-                  alt={selected.title}
-                  className="trl-summary-canvas__cover"
-                />
+                <div className="trl-summary-canvas__left">
+                  <img
+                    src={selected.thumbnail || 'https://placehold.co/128x192?text=No+Cover'}
+                    alt={selected.title}
+                    className="trl-summary-canvas__cover"
+                  />
+                  <a
+                    className="trl-btn trl-btn--outline trl-summary-canvas__amazon"
+                    href={`https://www.amazon.com/s?k=${encodeURIComponent(selected.title + ' ' + (selected.authors?.[0] || ''))}&tag=${AMAZON_TAG}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Buy on Amazon
+                  </a>
+                </div>
                 <div className="trl-summary-canvas__info">
                   <h2 className="trl-summary-canvas__title">{selected.title}</h2>
                   {selected.authors?.length ? (
@@ -544,35 +554,24 @@ export default function TRLBookSummaryGenerator() {
                   {selected.categories?.[0] ? (
                     <p className="trl-summary-canvas__meta">{selected.categories[0]}</p>
                   ) : null}
+                  <p className="trl-summary-canvas__langhint">Language Options</p>
+                  <div className="trl-summary-canvas__langcontrols">
+                    <select
+                      className="trl-summary-canvas__language"
+                      value={summaryLang}
+                      onChange={(e) => setSummaryLang(e.target.value)}
+                    >
+                      {LANG_OPTIONS.map((l) => (
+                        <option key={l.code} value={l.code}>{l.label}</option>
+                      ))}
+                    </select>
+                    <Button variant="outline" onClick={handleGenerate} disabled={loadingSummary}>
+                      Regenerate
+                    </Button>
+                  </div>
                 </div>
               </div>
             )}
-            <div className="trl-summary-canvas__controls">
-              <div className="trl-summary-canvas__controls-center">
-                <select
-                  className="trl-summary-canvas__language"
-                  value={summaryLang}
-                  onChange={(e) => setSummaryLang(e.target.value)}
-                >
-                  {LANG_OPTIONS.map((l) => (
-                    <option key={l.code} value={l.code}>{l.label}</option>
-                  ))}
-                </select>
-                <Button variant="outline" onClick={handleGenerate} disabled={loadingSummary}>
-                  Regenerate
-                </Button>
-              </div>
-              {selected && (
-                <a
-                  className="trl-btn trl-btn--outline trl-summary-canvas__amazon"
-                  href={`https://www.amazon.com/s?k=${encodeURIComponent(selected.title + ' ' + (selected.authors?.[0] || ''))}&tag=${AMAZON_TAG}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Buy on Amazon
-                </a>
-              )}
-            </div>
             <div
               ref={summaryBlockRef}
               className="trl-prose no-copy trl-summary-canvas__body"
@@ -607,7 +606,15 @@ export default function TRLBookSummaryGenerator() {
                     >
                       <span className="emph">{s.title}</span>
                     </button>
-                    {s.author ? ` by ${s.author}` : ''}
+                    {s.author ? ` by ${s.author}` : ''}{' '}
+                    <a
+                      className="trl-btn trl-btn--outline trl-suggestion__amazon"
+                      href={`https://www.amazon.com/s?k=${encodeURIComponent(s.title + ' ' + (s.author || ''))}&tag=${AMAZON_TAG}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Buy on Amazon
+                    </a>
                   </li>
                 ))}
               </ul>
@@ -729,10 +736,12 @@ export default function TRLBookSummaryGenerator() {
         .trl-summary-canvas__info{ flex:1; display:flex; flex-direction:column; gap:4px; }
         .trl-summary-canvas__title{ margin:0; font-size:20px; line-height:1.2; }
         .trl-summary-canvas__meta{ margin:0; font-size:13px; color:var(--muted); }
-        .trl-summary-canvas__controls{ display:flex; align-items:center; padding:0 16px 16px; gap:8px; }
-        .trl-summary-canvas__controls-center{ flex:1; display:flex; justify-content:center; gap:8px; }
+        .trl-summary-canvas__left{ display:flex; flex-direction:column; align-items:center; gap:8px; }
         .trl-summary-canvas__language{ padding:6px; border:1px solid var(--line); border-radius:6px; }
-        .trl-summary-canvas__amazon{ margin-left:auto; text-decoration:none; }
+        .trl-summary-canvas__langhint{ margin-top:8px; font-size:13px; color:var(--muted); }
+        .trl-summary-canvas__langcontrols{ margin-top:4px; display:flex; align-items:center; gap:8px; }
+        .trl-summary-canvas__amazon{ display:block; width:100%; text-align:center; text-decoration:none; }
+        .trl-suggestion__amazon{ margin-left:8px; text-decoration:none; }
         .trl-summary-canvas__body{ padding:0 16px 60px; }
         .trl-summary-canvas__footer{ margin-top:20px; display:flex; justify-content:center; }
         @keyframes trl-canvas-drop{ from{ transform:scaleY(0);} to{ transform:scaleY(1);} }
