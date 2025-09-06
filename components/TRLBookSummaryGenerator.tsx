@@ -104,6 +104,45 @@ function Splash({ show, onCancel }: { show: boolean; onCancel: () => void }) {
   );
 }
 
+/* -------------- Suggestion Card -------------- */
+function SuggestionCard({ suggestion, onGenerate }: { suggestion: Suggestion; onGenerate: (s: Suggestion) => void }) {
+  const [thumb, setThumb] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const q = [suggestion.title, suggestion.author].filter(Boolean).join(' ');
+        const url = new URL('https://www.googleapis.com/books/v1/volumes');
+        url.searchParams.set('q', q);
+        url.searchParams.set('maxResults', '1');
+        const res = await fetch(url.toString());
+        const data = await res.json();
+        const img = data.items?.[0]?.volumeInfo?.imageLinks?.thumbnail;
+        if (active && img) setThumb(img.replace(/^http:/, 'https:'));
+      } catch {}
+    })();
+    return () => { active = false; };
+  }, [suggestion.title, suggestion.author]);
+
+  return (
+    <div className="trl-suggestion-card">
+      {thumb && <img src={thumb} alt={`Cover of ${suggestion.title}`} className="trl-suggestion-card__img" />}
+      <div className="trl-suggestion-card__title">{suggestion.title}</div>
+      {suggestion.author && <div className="trl-suggestion-card__author">{suggestion.author}</div>}
+      <Button variant="outline" onClick={() => onGenerate(suggestion)}>Generate Summary</Button>
+      <a
+        className="trl-btn trl-btn--primary"
+        href={`https://www.amazon.com/s?k=${encodeURIComponent(suggestion.title + ' ' + (suggestion.author || ''))}&tag=${AMAZON_TAG}`}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        Buy on Amazon
+      </a>
+    </div>
+  );
+}
+
 /* ---------------- Main Component ---------------- */
 export default function TRLBookSummaryGenerator() {
   const [query, setQuery] = useState('');
@@ -403,19 +442,6 @@ export default function TRLBookSummaryGenerator() {
     }
   }
 
-  // When clicking a suggested book title: run a new search & reset view.
-  function handleSuggestionClick(s: Suggestion) {
-    const q = s.title;
-    setQuery(q);
-    setSelected(null);
-    setHasGenerated(false);
-    setSummary(null);
-    setSummaryError(null);
-    setBooks([]);
-    void doSearch(q);
-    if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
-
   async function handleSuggestionGenerate(s: Suggestion) {
     const q = s.title;
     setQuery(q);
@@ -642,39 +668,11 @@ export default function TRLBookSummaryGenerator() {
               ) : null}
 
               <h3>Reader&apos;s Suggestions</h3>
-              <ul>
+              <div className="trl-suggestions">
                 {(summary.readers_suggestion || []).slice(0,3).map((s, i) => (
-                  <li key={i} className="trl-suggestion__item">
-                    <div>
-                      <button
-                        className="linklike"
-                        onClick={() => handleSuggestionClick(s)}
-                        aria-label={`Search for ${s.title}`}
-                        title={`Search for ${s.title}`}
-                      >
-                        <span className="emph">{s.title}</span>
-                      </button>
-                      {s.author ? ` by ${s.author}` : ''}
-                    </div>
-                    <div className="trl-suggestion__actions">
-                      <button
-                        className="trl-btn trl-btn--outline trl-suggestion__generate"
-                        onClick={() => handleSuggestionGenerate(s)}
-                      >
-                        Generate Summary
-                      </button>
-                      <a
-                        className="trl-btn trl-btn--primary trl-suggestion__amazon"
-                        href={`https://www.amazon.com/s?k=${encodeURIComponent(s.title + ' ' + (s.author || ''))}&tag=${AMAZON_TAG}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        Buy on Amazon
-                      </a>
-                    </div>
-                  </li>
+                  <SuggestionCard key={i} suggestion={s} onGenerate={handleSuggestionGenerate} />
                 ))}
-              </ul>
+              </div>
 
               {/* Feedback */}
               <div className="trl-feedback">
@@ -797,10 +795,12 @@ export default function TRLBookSummaryGenerator() {
         .trl-summary-canvas__langhint{ font-size:13px; color:var(--muted); margin:0 0 4px; text-align:center; width:100%; }
         .trl-summary-canvas__regen{ margin-top:auto; width:120px; display:flex; flex-direction:column; align-items:center; gap:8px; }
         .trl-summary-canvas__amazon{ display:block; width:100%; text-align:center; text-decoration:none; margin-top:auto; }
-        .trl-suggestion__item{ margin-bottom:12px; }
-        .trl-suggestion__actions{ margin-top:4px; display:flex; gap:8px; }
-        .trl-suggestion__generate{ text-decoration:none; }
-        .trl-suggestion__amazon{ text-decoration:none; }
+        .trl-suggestions{ display:flex; gap:16px; flex-wrap:wrap; margin-top:8px; }
+        .trl-suggestion-card{ width:150px; display:flex; flex-direction:column; align-items:center; text-align:center; }
+        .trl-suggestion-card__img{ width:100%; height:auto; border-radius:4px; }
+        .trl-suggestion-card__title{ font-weight:600; margin-top:6px; }
+        .trl-suggestion-card__author{ font-size:14px; color:var(--muted); margin-bottom:8px; }
+        .trl-suggestion-card .trl-btn{ width:100%; margin-top:4px; text-decoration:none; }
         .trl-summary-canvas__body{ padding:0 24px 60px; }
         .trl-summary-canvas__footer{ margin-top:20px; display:flex; justify-content:center; }
         @keyframes trl-canvas-drop{ from{ transform:scaleY(0);} to{ transform:scaleY(1);} }
