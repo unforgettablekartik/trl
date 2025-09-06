@@ -561,7 +561,7 @@ export default function TRLBookSummaryGenerator() {
                     className="trl-summary-canvas__cover"
                   />
                   <a
-                    className="trl-btn trl-btn--outline trl-summary-canvas__amazon"
+                    className="trl-btn trl-btn--primary trl-summary-canvas__amazon"
                     href={`https://www.amazon.com/s?k=${encodeURIComponent(selected.title + ' ' + (selected.authors?.[0] || ''))}&tag=${AMAZON_TAG}`}
                     target="_blank"
                     rel="noopener noreferrer"
@@ -593,7 +593,7 @@ export default function TRLBookSummaryGenerator() {
                       onClick={() => handleGenerate()}
                       disabled={loadingSummary}
                     >
-                      Regenerate Summary
+                      Regenerate
                     </Button>
                   </div>
                 </div>
@@ -641,7 +641,7 @@ export default function TRLBookSummaryGenerator() {
                       Generate Summary
                     </button>{' '}
                     <a
-                      className="trl-btn trl-btn--outline trl-suggestion__amazon"
+                      className="trl-btn trl-btn--primary trl-suggestion__amazon"
                       href={`https://www.amazon.com/s?k=${encodeURIComponent(s.title + ' ' + (s.author || ''))}&tag=${AMAZON_TAG}`}
                       target="_blank"
                       rel="noopener noreferrer"
@@ -761,23 +761,23 @@ export default function TRLBookSummaryGenerator() {
 
         .trl-summary-backdrop{ position:fixed; inset:0; background:rgba(0,0,0,.8); z-index:70; display:flex; justify-content:center; align-items:flex-start; overflow-y:auto; }
         .trl-summary-canvas{ position:relative; background:#fff; margin:40px auto; width:min(90vw,780px); border-radius:8px; overflow:hidden; animation:trl-canvas-drop .3s ease-out; transform-origin:top; }
-        .trl-summary-canvas__header{ display:flex; align-items:center; gap:8px; padding:16px; }
+        .trl-summary-canvas__header{ display:flex; align-items:center; gap:8px; padding:16px 24px; }
         .trl-summary-canvas__logo{ height:32px; width:auto; }
         .trl-summary-canvas__close{ background:none; border:none; font-size:24px; line-height:1; cursor:pointer; margin-left:auto; }
-        .trl-summary-canvas__top{ display:flex; align-items:flex-start; gap:16px; padding:0 16px 16px; }
+        .trl-summary-canvas__top{ display:flex; align-items:flex-start; gap:16px; padding:0 24px 16px; }
         .trl-summary-canvas__cover{ width:120px; height:auto; border-radius:8px; box-shadow:0 1px 4px rgba(0,0,0,.1); }
         .trl-summary-canvas__info{ flex:1; display:flex; flex-direction:column; gap:4px; }
         .trl-summary-canvas__title{ margin:0; font-size:20px; line-height:1.2; }
         .trl-summary-canvas__meta{ margin:0; font-size:13px; color:var(--muted); }
         .trl-summary-canvas__left{ display:flex; flex-direction:column; align-items:center; gap:8px; }
-        .trl-summary-canvas__language{ padding:6px; border:1px solid var(--line); border-radius:6px; width:140px; }
-        .trl-summary-canvas__langhint{ font-size:13px; color:var(--muted); margin:0 0 4px; text-align:right; width:100%; }
-        .trl-summary-canvas__regen{ margin-top:auto; margin-left:auto; width:140px; display:flex; flex-direction:column; align-items:flex-end; gap:8px; }
+        .trl-summary-canvas__language{ padding:6px; border:1px solid var(--line); border-radius:6px; width:120px; }
+        .trl-summary-canvas__langhint{ font-size:13px; color:var(--muted); margin:0 0 4px; text-align:center; width:100%; }
+        .trl-summary-canvas__regen{ margin-top:auto; width:120px; display:flex; flex-direction:column; align-items:center; gap:8px; }
         .trl-summary-canvas__amazon{ display:block; width:100%; text-align:center; text-decoration:none; margin-top:auto; }
         .trl-suggestion__item{ margin-bottom:8px; }
         .trl-suggestion__generate{ margin-left:8px; text-decoration:none; }
         .trl-suggestion__amazon{ margin-left:8px; text-decoration:none; }
-        .trl-summary-canvas__body{ padding:0 16px 60px; }
+        .trl-summary-canvas__body{ padding:0 24px 60px; }
         .trl-summary-canvas__footer{ margin-top:20px; display:flex; justify-content:center; }
         @keyframes trl-canvas-drop{ from{ transform:scaleY(0);} to{ transform:scaleY(1);} }
 
