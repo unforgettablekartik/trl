@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
+import CategoryCards from './CategoryCards';
 
 /* ---------------- Types ---------------- */
 interface BookLite {
@@ -498,6 +499,11 @@ export default function TRLBookSummaryGenerator() {
               {searchError && <div className="trl-error">{searchError}</div>}
             </div>
           </Card>
+
+          {/* Category Cards - shown when no search results */}
+          {!loadingSearch && books.length === 0 && !selected && (
+            <CategoryCards />
+          )}
 
           {/* Suggestions */}
           <div className="trl-grid">
