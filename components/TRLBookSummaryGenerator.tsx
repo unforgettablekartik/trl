@@ -374,6 +374,82 @@ export default function TRLBookSummaryGenerator() {
     }
   }
 
+  // Function to generate summary for a specific book (used for category selections)
+  async function generateSummaryForBook(book: BookLite, lang: string) {
+    setHasGenerated(true);
+    setLoadingSummary(true);
+    setSummary(null);
+    setSummaryError(null);
+
+    // Local cache check (client-side)
+    try {
+      const key = cacheKey(book, lang);
+      const cached = typeof window !== 'undefined' ? localStorage.getItem(key) : null;
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        const normalized = normalizeSummary(parsed);
+        if (normalized) {
+          setSummary(normalized);
+          setLoadingSummary(false);
+          return;
+        }
+      }
+    } catch {}
+
+    // Create AbortController for this request
+    abortSummaryRef.current?.abort();
+    const ac = new AbortController();
+    abortSummaryRef.current = ac;
+
+    const body = {
+      title: book.title,
+      authors: book.authors,
+      publishedDate: book.publishedDate,
+      description: book.description,
+      categories: book.categories,
+      desiredWords: DESIRED_WORDS,
+      tolerance: TOLERANCE,
+      language: lang,
+    };
+
+    try {
+      const sumRes = await fetch('/api/summarize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: ac.signal,
+      });
+
+      if (sumRes.ok) {
+        let raw: any = null;
+        try { raw = await sumRes.json(); } catch {}
+        if (raw && typeof raw === 'string') { try { raw = JSON.parse(raw); } catch {} }
+        const normalized = normalizeSummary(raw);
+        if (normalized) {
+          setSummary(normalized);
+          // store in cache
+          try {
+            const key = cacheKey(book, lang);
+            localStorage.setItem(key, JSON.stringify(raw));
+          } catch {}
+        } else {
+          setSummaryError('The summary came back in an unexpected format. Please try again.');
+        }
+      } else {
+        if (sumRes.status !== 499) {
+          setSummaryError(await sumRes.text() || 'Summary service returned an error.');
+        }
+      }
+    } catch (e: any) {
+      if (e?.name !== 'AbortError') {
+        console.error(e);
+        setSummaryError('Request failed. Please check your connection and try again.');
+      }
+    } finally {
+      setLoadingSummary(false);
+    }
+  }
+
   function cancelSummary() {
     abortSummaryRef.current?.abort();
     resetToHome();
@@ -530,6 +606,8 @@ export default function TRLBookSummaryGenerator() {
               setSummary(null);
               setSummaryError(null);
               setFromCategory(true); // Set flag to prevent debounced search
+              // Automatically generate summary for the selected book
+              generateSummaryForBook(minimalBook, summaryLang);
               // Scroll to the selection after a brief delay
               setTimeout(() => {
                 if (typeof window !== 'undefined') {

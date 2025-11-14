@@ -159,9 +159,9 @@ export default function CategoryCards({ onBookSelect }: CategoryCardsProps = {})
 
   // Fetch book covers from Google Books API with fallback to placeholders
   const fetchBookCovers = async (books: Book[]): Promise<Book[]> => {
-    // For efficiency, only fetch covers for first 20 books initially
+    // Fetch covers for ALL books to ensure all have covers
     const booksWithCovers = await Promise.all(
-      books.slice(0, 20).map(async (book) => {
+      books.map(async (book) => {
         try {
           const response = await fetch(
             `/api/books?q=${encodeURIComponent(book.title)}&maxResults=1`,
@@ -192,13 +192,7 @@ export default function CategoryCards({ onBookSelect }: CategoryCardsProps = {})
       })
     );
     
-    // Add placeholders for remaining books
-    const remainingBooks = books.slice(20).map(book => ({
-      ...book,
-      thumbnail: generateSVGPlaceholder(book.title)
-    }));
-    
-    return [...booksWithCovers, ...remainingBooks];
+    return booksWithCovers;
   };
 
   // Initialize categories and fetch book covers
