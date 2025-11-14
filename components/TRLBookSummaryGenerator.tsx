@@ -441,7 +441,7 @@ export default function TRLBookSummaryGenerator() {
             <Logo />
             <div className="trl-titles">
               <h1>{brand.name}</h1>
-              <p>AI Book Summary Generator</p>
+              <p>Generate the Best Book Summaries Online</p>
             </div>
           </div>
           <div className="trl-header__actions">
@@ -453,8 +453,7 @@ export default function TRLBookSummaryGenerator() {
       {/* SEO intro */}
       <section className="trl-hero-seo">
         <p>
-          <strong>{brand.name}</strong> offers AI book summaries: Search any book or author and get a
-          2,000‑word crisp summary with bonus Reader&apos;s Takeaway and Reader&apos;s Suggestion.
+          Generate easy-to-understand book summaries, in a single prompt, from 10,000+ book titles
         </p>
       </section>
 

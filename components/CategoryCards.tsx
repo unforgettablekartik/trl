@@ -450,7 +450,6 @@ export default function CategoryCards({ onBookSelect }: CategoryCardsProps = {})
                   ))}
                 </div>
                 <h3>{category.title}</h3>
-                <p>{category.books.length} books available</p>
               </div>
             </button>
           ))}
@@ -495,7 +494,7 @@ export default function CategoryCards({ onBookSelect }: CategoryCardsProps = {})
           transition: all 0.3s ease;
           position: relative;
           overflow: hidden;
-          aspect-ratio: 3 / 2;
+          aspect-ratio: 5 / 2;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -529,8 +528,8 @@ export default function CategoryCards({ onBookSelect }: CategoryCardsProps = {})
         .trl-category-card h3 {
           font-size: 20px;
           font-weight: 800;
-          color: var(--brand-800);
-          margin: 0 0 12px;
+          color: #4c9c95;
+          margin: 0;
           line-height: 1.3;
         }
         .trl-category-card p {
