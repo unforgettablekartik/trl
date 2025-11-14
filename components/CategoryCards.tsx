@@ -144,11 +144,24 @@ export default function CategoryCards({ onBookSelect }: CategoryCardsProps = {})
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Generate an inline SVG placeholder
+  const generateSVGPlaceholder = (title: string): string => {
+    const shortTitle = title.slice(0, 20);
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="120" height="180" viewBox="0 0 120 180">
+      <rect width="120" height="180" fill="#E6FAFD"/>
+      <text x="50%" y="50%" text-anchor="middle" dy="0.3em" fill="#06B6D4" font-family="Arial, sans-serif" font-size="10" font-weight="bold">
+        <tspan x="50%" dy="0">${shortTitle.slice(0, 10)}</tspan>
+        ${shortTitle.length > 10 ? `<tspan x="50%" dy="1.2em">${shortTitle.slice(10)}</tspan>` : ''}
+      </text>
+    </svg>`;
+    return `data:image/svg+xml;base64,${btoa(svg)}`;
+  };
+
   // Fetch book covers from Google Books API with fallback to placeholders
   const fetchBookCovers = async (books: Book[]): Promise<Book[]> => {
-    // For efficiency, only fetch covers for first 20 books initially
+    // Fetch covers for ALL books to ensure all have covers
     const booksWithCovers = await Promise.all(
-      books.slice(0, 20).map(async (book) => {
+      books.map(async (book) => {
         try {
           const response = await fetch(
             `/api/books?q=${encodeURIComponent(book.title)}&maxResults=1`,
@@ -171,21 +184,15 @@ export default function CategoryCards({ onBookSelect }: CategoryCardsProps = {})
         } catch (error) {
           // Silently fail and use placeholder
         }
-        // Use a placeholder image service
+        // Use inline SVG placeholder
         return {
           ...book,
-          thumbnail: `https://placehold.co/120x180/E6FAFD/06B6D4?text=${encodeURIComponent(book.title.slice(0, 15))}`
+          thumbnail: generateSVGPlaceholder(book.title)
         };
       })
     );
     
-    // Add placeholders for remaining books
-    const remainingBooks = books.slice(20).map(book => ({
-      ...book,
-      thumbnail: `https://placehold.co/120x180/E6FAFD/06B6D4?text=${encodeURIComponent(book.title.slice(0, 15))}`
-    }));
-    
-    return [...booksWithCovers, ...remainingBooks];
+    return booksWithCovers;
   };
 
   // Initialize categories and fetch book covers
