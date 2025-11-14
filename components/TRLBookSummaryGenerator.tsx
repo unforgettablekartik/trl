@@ -502,7 +502,10 @@ export default function TRLBookSummaryGenerator() {
 
           {/* Category Cards - shown when no search results */}
           {!loadingSearch && books.length === 0 && !selected && (
-            <CategoryCards />
+            <CategoryCards onBookSelect={(bookTitle) => {
+              setQuery(bookTitle);
+              void doSearch(bookTitle);
+            }} />
           )}
 
           {/* Suggestions */}

@@ -7,12 +7,18 @@ interface Book {
   id: string;
   title: string;
   authors?: string[];
+  thumbnail?: string;
 }
 
 interface Category {
   id: string;
   title: string;
   books: Book[];
+  tags: { text: string; color: string }[];
+}
+
+interface CategoryCardsProps {
+  onBookSelect?: (bookTitle: string) => void;
 }
 
 /* ---------------- Curated Book Data ---------------- */
@@ -106,29 +112,97 @@ const CATEGORY_CONFIGS = [
     id: 'self-help',
     title: '100 Best Self-Help Books Summarized for Success',
     books: createBooksFromTitles(SELF_HELP_BOOKS, 'self-help'),
+    tags: [
+      { text: 'Motivation', color: '#C45508' },
+      { text: 'Success', color: '#C45508' }
+    ]
   },
   {
     id: 'wealth',
     title: 'Top-100 Best Book Summaries to Get Rich',
     books: createBooksFromTitles(WEALTH_BOOKS, 'wealth'),
+    tags: [
+      { text: 'Wealth', color: '#D4A537' },
+      { text: 'Money', color: '#D4A537' }
+    ]
   },
   {
     id: 'entrepreneurship',
     title: 'Best Book Summaries on Entrepreneurship',
     books: createBooksFromTitles(ENTREPRENEURSHIP_BOOKS, 'entrepreneurship'),
+    tags: [
+      { text: 'StartUp', color: '#2E6F40' },
+      { text: 'Business', color: '#2E6F40' }
+    ]
   },
 ];
 
 /* ---------------- Component ---------------- */
-export default function CategoryCards() {
+export default function CategoryCards({ onBookSelect }: CategoryCardsProps = {}) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Initialize categories with curated data
+  // Fetch book covers from Google Books API with fallback to placeholders
+  const fetchBookCovers = async (books: Book[]): Promise<Book[]> => {
+    // For efficiency, only fetch covers for first 20 books initially
+    const booksWithCovers = await Promise.all(
+      books.slice(0, 20).map(async (book) => {
+        try {
+          const response = await fetch(
+            `/api/books?q=${encodeURIComponent(book.title)}&maxResults=1`,
+            { signal: AbortSignal.timeout(3000) } // 3 second timeout
+          );
+          if (response.ok) {
+            const data = await response.json();
+            if (data.items && data.items.length > 0) {
+              const volumeInfo = data.items[0].volumeInfo;
+              const thumbnail = volumeInfo?.imageLinks?.thumbnail || volumeInfo?.imageLinks?.smallThumbnail || '';
+              if (thumbnail) {
+                return {
+                  ...book,
+                  thumbnail: thumbnail.replace(/^http:/, 'https:'),
+                  authors: volumeInfo?.authors || book.authors
+                };
+              }
+            }
+          }
+        } catch (error) {
+          // Silently fail and use placeholder
+        }
+        // Use a placeholder image service
+        return {
+          ...book,
+          thumbnail: `https://placehold.co/120x180/E6FAFD/06B6D4?text=${encodeURIComponent(book.title.slice(0, 15))}`
+        };
+      })
+    );
+    
+    // Add placeholders for remaining books
+    const remainingBooks = books.slice(20).map(book => ({
+      ...book,
+      thumbnail: `https://placehold.co/120x180/E6FAFD/06B6D4?text=${encodeURIComponent(book.title.slice(0, 15))}`
+    }));
+    
+    return [...booksWithCovers, ...remainingBooks];
+  };
+
+  // Initialize categories and fetch book covers
   useEffect(() => {
-    setCategories(CATEGORY_CONFIGS);
+    const initializeCategories = async () => {
+      setLoading(true);
+      const categoriesWithCovers = await Promise.all(
+        CATEGORY_CONFIGS.map(async (config) => ({
+          ...config,
+          books: await fetchBookCovers(config.books)
+        }))
+      );
+      setCategories(categoriesWithCovers);
+      setLoading(false);
+    };
+
+    initializeCategories();
   }, []);
 
   const handleCardClick = (category: Category) => {
@@ -142,9 +216,14 @@ export default function CategoryCards() {
   };
 
   const handleBookClick = (book: Book) => {
-    // Placeholder function for book summary navigation
-    console.log('Navigate to book summary:', book.title);
-    alert(`Book summary for "${book.title}" - Coming soon!`);
+    // Use the callback to trigger summary generation in parent component
+    if (onBookSelect) {
+      onBookSelect(book.title);
+    } else {
+      // Fallback to alert if no callback provided
+      console.log('Navigate to book summary:', book.title);
+      alert(`Book summary for "${book.title}" - Coming soon!`);
+    }
   };
 
   // Filter books based on search query
@@ -185,10 +264,20 @@ export default function CategoryCards() {
                 className="trl-book-item"
                 onClick={() => handleBookClick(book)}
               >
-                <div className="book-title">{book.title}</div>
-                {book.authors && book.authors.length > 0 && (
-                  <div className="book-authors">{book.authors.join(', ')}</div>
+                {book.thumbnail && (
+                  <img 
+                    src={book.thumbnail} 
+                    alt={book.title}
+                    className="book-cover"
+                    loading="lazy"
+                  />
                 )}
+                <div className="book-info">
+                  <div className="book-title">{book.title}</div>
+                  {book.authors && book.authors.length > 0 && (
+                    <div className="book-authors">{book.authors.join(', ')}</div>
+                  )}
+                </div>
               </button>
             ))}
           </div>
@@ -257,21 +346,44 @@ export default function CategoryCards() {
             background: white;
             border: 1px solid var(--line);
             border-radius: 12px;
-            padding: 16px;
+            padding: 12px;
             text-align: left;
             cursor: pointer;
             transition: all 0.2s ease;
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+          }
+          .trl-book-item .book-cover {
+            width: 60px;
+            height: 90px;
+            object-fit: cover;
+            border-radius: 6px;
+            flex-shrink: 0;
+            background: #E6FAFD;
+          }
+          .trl-book-item .book-info {
+            flex: 1;
+            min-width: 0;
           }
           .trl-book-item .book-title {
             font-size: 15px;
             font-weight: 600;
             color: var(--ink);
             margin-bottom: 4px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
           }
           .trl-book-item .book-authors {
             font-size: 13px;
             color: var(--muted);
             font-weight: 400;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
           }
           .trl-book-item:hover {
             background: #ECFDFF;
@@ -323,6 +435,20 @@ export default function CategoryCards() {
               onClick={() => handleCardClick(category)}
             >
               <div className="trl-category-card-content">
+                <div className="trl-category-tags">
+                  {category.tags.map((tag, index) => (
+                    <span
+                      key={index}
+                      className="trl-tag"
+                      style={{
+                        color: tag.color,
+                        borderColor: tag.color
+                      }}
+                    >
+                      {tag.text}
+                    </span>
+                  ))}
+                </div>
                 <h3>{category.title}</h3>
                 <p>{category.books.length} books available</p>
               </div>
@@ -369,7 +495,7 @@ export default function CategoryCards() {
           transition: all 0.3s ease;
           position: relative;
           overflow: hidden;
-          aspect-ratio: 1;
+          aspect-ratio: 3 / 2;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -382,6 +508,23 @@ export default function CategoryCards() {
         .trl-category-card-content {
           padding: 24px;
           text-align: center;
+          width: 100%;
+        }
+        .trl-category-tags {
+          display: flex;
+          gap: 8px;
+          justify-content: center;
+          margin-bottom: 16px;
+          flex-wrap: wrap;
+        }
+        .trl-tag {
+          display: inline-block;
+          padding: 6px 12px;
+          border: 2px solid;
+          border-radius: 6px;
+          font-size: 13px;
+          font-weight: 700;
+          letter-spacing: 0.3px;
         }
         .trl-category-card h3 {
           font-size: 20px;
