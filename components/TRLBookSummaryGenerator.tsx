@@ -162,6 +162,7 @@ export default function TRLBookSummaryGenerator() {
 
   const [selected, setSelected] = useState<BookLite | null>(null);
   const [hasGenerated, setHasGenerated] = useState(false);
+  const [fromCategory, setFromCategory] = useState(false); // Track if selection is from category
 
   const [loadingSummary, setLoadingSummary] = useState(false);
   const [summary, setSummary] = useState<SummaryPayload | null>(null);
@@ -187,12 +188,13 @@ export default function TRLBookSummaryGenerator() {
     setSummaryError(null);
     setLoadingSearch(false);
     setLoadingSummary(false);
+    setFromCategory(false); // Reset flag
     if (typeof window !== 'undefined') {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   }
 
-  async function doSearch(q: string) {
+  async function doSearch(q: string, autoSelectFirst = false) {
     if (!q || q.trim().length < 2) { setBooks([]); setVisibleCount(5); setSearchError(null); return; }
     try {
       setLoadingSearch(true); setSearchError(null);
@@ -205,7 +207,7 @@ export default function TRLBookSummaryGenerator() {
         const proxy = new URL('/api/books', window.location.origin);
         proxy.searchParams.set('q', q);
         proxy.searchParams.set('maxResults', '30');
-        if (!searchAllLangs) proxy.searchParams.set('langRestrict', 'en');
+        if (!searchAllLangs && !autoSelectFirst) proxy.searchParams.set('langRestrict', 'en');
         const pres = await fetch(proxy.toString(), { signal: ac.signal });
         if (pres.ok) data = await pres.json();
       } catch {}
@@ -215,7 +217,7 @@ export default function TRLBookSummaryGenerator() {
         gurl.searchParams.set('maxResults', '30');
         gurl.searchParams.set('printType', 'books');
         gurl.searchParams.set('orderBy', 'relevance');
-        if (!searchAllLangs) gurl.searchParams.set('langRestrict', 'en');
+        if (!searchAllLangs && !autoSelectFirst) gurl.searchParams.set('langRestrict', 'en');
         const gres = await fetch(gurl.toString(), { signal: ac.signal });
         data = await gres.json();
       }
@@ -236,6 +238,17 @@ export default function TRLBookSummaryGenerator() {
 
       setBooks(items); setVisibleCount(5);
       if (!items.length) setSearchError('No results found. Try a shorter query or different spelling.');
+      
+      // Auto-select first result if requested (for category selections)
+      if (autoSelectFirst && items.length > 0) {
+        setSelected(items[0]);
+        // Scroll to the selection after a brief delay to allow rendering
+        setTimeout(() => {
+          if (typeof window !== 'undefined') {
+            window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+          }
+        }, 100);
+      }
     } catch (e: any) {
       if (e?.name !== 'AbortError') { console.error(e); setSearchError('Could not reach the books service. Please try again.'); }
     } finally {
@@ -245,10 +258,12 @@ export default function TRLBookSummaryGenerator() {
 
   useEffect(() => {
     if (!debouncedQuery || debouncedQuery.trim().length < 2) { setBooks([]); setVisibleCount(5); return; }
+    // Don't search if we have a selection from category
+    if (fromCategory) return;
     setHasGenerated(false);
     setSelected(null);
     void doSearch(debouncedQuery);
-  }, [debouncedQuery, searchAllLangs]);
+  }, [debouncedQuery, searchAllLangs, fromCategory]);
 
   function normalizeSuggestions(rs: any): Suggestion[] {
     if (!Array.isArray(rs)) return [];
@@ -502,8 +517,25 @@ export default function TRLBookSummaryGenerator() {
           {/* Category Cards - shown when no search results */}
           {!loadingSearch && books.length === 0 && !selected && (
             <CategoryCards onBookSelect={(bookTitle) => {
+              // Create a minimal book object directly without searching
+              const minimalBook: BookLite = {
+                id: `category-${Date.now()}`,
+                title: bookTitle,
+                authors: [],
+                thumbnail: ''
+              };
+              setSelected(minimalBook);
               setQuery(bookTitle);
-              void doSearch(bookTitle);
+              setHasGenerated(false);
+              setSummary(null);
+              setSummaryError(null);
+              setFromCategory(true); // Set flag to prevent debounced search
+              // Scroll to the selection after a brief delay
+              setTimeout(() => {
+                if (typeof window !== 'undefined') {
+                  window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+                }
+              }, 100);
             }} />
           )}
 
