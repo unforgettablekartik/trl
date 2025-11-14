@@ -489,6 +489,19 @@ export default function TRLBookSummaryGenerator() {
     };
   }, [summary]);
 
+  // Scroll to summary section when summary is generated
+  useEffect(() => {
+    if (summary && summaryBlockRef.current) {
+      // Small delay to ensure the content is rendered
+      setTimeout(() => {
+        summaryBlockRef.current?.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'start' 
+        });
+      }, 100);
+    }
+  }, [summary]);
+
   async function sendFeedback(kind: 'up'|'down') {
     try {
       await fetch('/api/feedback', {
