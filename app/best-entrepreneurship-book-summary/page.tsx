@@ -1,7 +1,7 @@
 'use client';
 
-import CategoryPage from '../../../components/CategoryPage';
-import { CATEGORIES } from '../../../data/books';
+import CategoryPage from '../../components/CategoryPage';
+import { CATEGORIES } from '../../data/books';
 
 export default function EntrepreneurshipBooksPage() {
   const category = CATEGORIES.find(c => c.slug === 'best-entrepreneurship-book-summary');

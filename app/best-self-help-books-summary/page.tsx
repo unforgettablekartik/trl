@@ -1,7 +1,7 @@
 'use client';
 
-import CategoryPage from '../../../components/CategoryPage';
-import { CATEGORIES } from '../../../data/books';
+import CategoryPage from '../../components/CategoryPage';
+import { CATEGORIES } from '../../data/books';
 
 export default function SelfHelpBooksPage() {
   const category = CATEGORIES.find(c => c.slug === 'best-self-help-books-summary');

@@ -2,7 +2,9 @@ import OpenAI from 'openai';
 import { NextRequest } from 'next/server';
 import crypto from 'crypto';
 
-const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const client = process.env.OPENAI_API_KEY 
+  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+  : null;
 
 // Upstash helpers
 const KV_URL = process.env.UPSTASH_REDIS_REST_URL || '';
@@ -32,6 +34,10 @@ function hashKey(obj: any) {
 }
 
 export async function POST(req: NextRequest) {
+  if (!client) {
+    return new Response('Image generation is not configured', { status: 503 });
+  }
+  
   try {
     const { title, authors } = await req.json();
     if (!title) return new Response('Missing title', { status: 400 });

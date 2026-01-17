@@ -1,7 +1,7 @@
 'use client';
 
-import CategoryPage from '../../../components/CategoryPage';
-import { CATEGORIES } from '../../../data/books';
+import CategoryPage from '../../components/CategoryPage';
+import { CATEGORIES } from '../../data/books';
 
 export default function GetRichBooksPage() {
   const category = CATEGORIES.find(c => c.slug === 'best-get-rich-books-summary');
