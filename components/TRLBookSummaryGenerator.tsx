@@ -154,6 +154,7 @@ export default function TRLBookSummaryGenerator() {
   const debouncedQuery = useDebounced(query);
   const [searchAllLangs, setSearchAllLangs] = useState(false);
   const [summaryLang, setSummaryLang] = useState('en');
+  const [initialBookLoad, setInitialBookLoad] = useState(false);
 
   const [books, setBooks] = useState<BookLite[]>([]);
   const [loadingSearch, setLoadingSearch] = useState(false);
@@ -255,6 +256,32 @@ export default function TRLBookSummaryGenerator() {
       setLoadingSearch(false);
     }
   }
+
+  // Handle book query parameter from URL (when coming from category pages)
+  useEffect(() => {
+    if (typeof window !== 'undefined' && !initialBookLoad) {
+      const params = new URLSearchParams(window.location.search);
+      const bookTitle = params.get('book');
+      if (bookTitle) {
+        setQuery(bookTitle);
+        setFromCategory(true);
+        setInitialBookLoad(true);
+        // Create a minimal book object and trigger summary generation
+        const minimalBook: BookLite = {
+          id: `url-${Date.now()}`,
+          title: bookTitle,
+          authors: [],
+          thumbnail: ''
+        };
+        setSelected(minimalBook);
+        setHasGenerated(false);
+        // Automatically generate summary
+        setTimeout(() => {
+          generateSummaryForBook(minimalBook, summaryLang);
+        }, 500);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     if (!debouncedQuery || debouncedQuery.trim().length < 2) { setBooks([]); setVisibleCount(5); return; }
