@@ -275,10 +275,11 @@ export default function TRLBookSummaryGenerator() {
         };
         setSelected(minimalBook);
         setHasGenerated(false);
-        // Automatically generate summary
+        // Automatically generate summary after a brief delay to ensure state is updated
+        const SUMMARY_DELAY_MS = 500;
         setTimeout(() => {
           generateSummaryForBook(minimalBook, summaryLang);
-        }, 500);
+        }, SUMMARY_DELAY_MS);
       }
     }
   }, []);

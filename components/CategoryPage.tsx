@@ -34,12 +34,13 @@ export default function CategoryPage({
 
   // Generate an inline SVG placeholder
   const generateSVGPlaceholder = (title: string): string => {
-    const shortTitle = title.slice(0, 20);
+    // Sanitize title to prevent any potential issues
+    const sanitizedTitle = title.replace(/[<>&"']/g, '').slice(0, 20);
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="120" height="180" viewBox="0 0 120 180">
       <rect width="120" height="180" fill="#E6FAFD"/>
       <text x="50%" y="50%" text-anchor="middle" dy="0.3em" fill="#06B6D4" font-family="Arial, sans-serif" font-size="10" font-weight="bold">
-        <tspan x="50%" dy="0">${shortTitle.slice(0, 10)}</tspan>
-        ${shortTitle.length > 10 ? `<tspan x="50%" dy="1.2em">${shortTitle.slice(10)}</tspan>` : ''}
+        <tspan x="50%" dy="0">${sanitizedTitle.slice(0, 10)}</tspan>
+        ${sanitizedTitle.length > 10 ? `<tspan x="50%" dy="1.2em">${sanitizedTitle.slice(10)}</tspan>` : ''}
       </text>
     </svg>`;
     return `data:image/svg+xml;base64,${btoa(svg)}`;
