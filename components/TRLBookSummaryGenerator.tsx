@@ -154,6 +154,7 @@ export default function TRLBookSummaryGenerator() {
   const debouncedQuery = useDebounced(query);
   const [searchAllLangs, setSearchAllLangs] = useState(false);
   const [summaryLang, setSummaryLang] = useState('en');
+  const [initialBookLoad, setInitialBookLoad] = useState(false);
 
   const [books, setBooks] = useState<BookLite[]>([]);
   const [loadingSearch, setLoadingSearch] = useState(false);
@@ -255,6 +256,33 @@ export default function TRLBookSummaryGenerator() {
       setLoadingSearch(false);
     }
   }
+
+  // Handle book query parameter from URL (when coming from category pages)
+  useEffect(() => {
+    if (typeof window !== 'undefined' && !initialBookLoad) {
+      const params = new URLSearchParams(window.location.search);
+      const bookTitle = params.get('book');
+      if (bookTitle) {
+        setQuery(bookTitle);
+        setFromCategory(true);
+        setInitialBookLoad(true);
+        // Create a minimal book object and trigger summary generation
+        const minimalBook: BookLite = {
+          id: `url-${Date.now()}`,
+          title: bookTitle,
+          authors: [],
+          thumbnail: ''
+        };
+        setSelected(minimalBook);
+        setHasGenerated(false);
+        // Automatically generate summary after a brief delay to ensure state is updated
+        const SUMMARY_DELAY_MS = 500;
+        setTimeout(() => {
+          generateSummaryForBook(minimalBook, summaryLang);
+        }, SUMMARY_DELAY_MS);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     if (!debouncedQuery || debouncedQuery.trim().length < 2) { setBooks([]); setVisibleCount(5); return; }
@@ -541,7 +569,7 @@ export default function TRLBookSummaryGenerator() {
       {/* Header */}
       <header className="trl-header">
         <div className="trl-header__inner">
-          <div className="trl-logo">
+          <div className="trl-logo" onClick={() => { window.location.href = '/'; }} style={{ cursor: 'pointer' }}>
             <Logo />
             <div className="trl-titles">
               <h1>{brand.name}</h1>
@@ -556,9 +584,8 @@ export default function TRLBookSummaryGenerator() {
 
       {/* SEO intro */}
       <section className="trl-hero-seo">
-        <p>
-          Generate easy-to-understand book summaries, in a single prompt, from 10,000+ book titles
-        </p>
+        <h2 className="trl-hero-main">Generate Crisp, Clear &amp; Concise Book Summaries</h2>
+        <p className="trl-hero-sub">Single prompt | 10,000+ Book Titles | Easy-to-understand</p>
       </section>
 
       {/* Main */}
@@ -598,7 +625,6 @@ export default function TRLBookSummaryGenerator() {
                   SEARCH
                 </Button>
               </div>
-              <div className="trl-help">Top 5 suggestions appear below. Use the button to load 5 more.</div>
               {searchError && <div className="trl-error">{searchError}</div>}
             </div>
           </Card>
@@ -755,7 +781,7 @@ export default function TRLBookSummaryGenerator() {
 
                     {summary.readers_treat ? (
                       <>
-                        <h3>Reader&apos;s Treat</h3>
+                        <h3>About Author</h3>
                         <p style={{marginTop: '-4px'}}>{summary.readers_treat}</p>
                       </>
                     ) : null}
@@ -817,11 +843,29 @@ export default function TRLBookSummaryGenerator() {
         .trl-header__inner{ max-width:1100px; margin:0 auto; padding:14px 16px; display:flex; align-items:center; justify-content:space-between; gap:12px; }
         .trl-logo{ display:flex; align-items:center; gap:12px; }
         .trl-logo img{ height:32px; width:auto; display:block; }
-        .trl-titles h1{ margin:0; font-weight:800; color:var(--brand-800); font-size: clamp(18px, 2.5vw, 24px); line-height:1.1; }
-        .trl-titles p{ margin:2px 0 0; color:var(--muted); font-size: clamp(12px, 1.8vw, 13px); }
+        .trl-titles h1{ margin:0; font-weight:800; color:#266967; font-size: clamp(18px, 2.5vw, 24px); line-height:1.1; }
+        .trl-titles p{ margin:2px 0 0; color:#adcac8; font-size: clamp(12px, 1.8vw, 13px); }
 
-        .trl-hero-seo { max-width:1100px; margin:10px auto 0; padding:0 16px; }
-        .trl-hero-seo p { margin:8px 0 0; color:#334155; font-size:14px; line-height:1.5; }
+        .trl-hero-seo { 
+          max-width:1100px; 
+          margin:10px auto 0; 
+          padding:0 16px; 
+          text-align: center;
+        }
+        .trl-hero-main { 
+          margin: 16px 0 8px; 
+          font-size: clamp(22px, 4vw, 32px); 
+          font-weight: 800; 
+          color: var(--brand-800); 
+          line-height: 1.2;
+        }
+        .trl-hero-sub { 
+          margin: 4px 0 0; 
+          color: #64748b; 
+          font-size: clamp(13px, 2vw, 16px); 
+          line-height: 1.5;
+          font-weight: 500;
+        }
 
         .trl-app{ min-height:100vh; background: linear-gradient(180deg, var(--bg) 0%, #fff 60%); }
         .trl-container{ max-width:1100px; margin:0 auto; padding: 24px 16px 80px; }

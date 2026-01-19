@@ -3,7 +3,9 @@ import OpenAI from 'openai';
 import { NextRequest } from 'next/server';
 import crypto from 'crypto';
 
-const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const client = process.env.OPENAI_API_KEY 
+  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+  : null;
 
 // ----- Upstash REST helpers -----
 const KV_URL = process.env.UPSTASH_REDIS_REST_URL || '';
@@ -76,6 +78,10 @@ function normalize(raw: any) {
 }
 
 export async function POST(req: NextRequest) {
+  if (!client) {
+    return new Response('Summary service is not configured', { status: 503 });
+  }
+  
   try {
     const body = await req.json();
     const {
@@ -102,7 +108,7 @@ export async function POST(req: NextRequest) {
       `totaling about ${desiredWords} words (±${Math.round(tolerance*100)}%). Avoid spoilers where possible.\n` +
       "After the three paragraphs, also include:\n" +
       "1) Reader's Takeaway — 5–8 crisp bullets.\n" +
-      "2) Reader's Treat — 4–5 lines introducing the author and mentioning a few of their important works.\n" +
+      "2) About Author — 4–5 lines introducing the author and mentioning a few of their important works.\n" +
       "3) Reader's Suggestion — EXACTLY 3 similar books (same topic/genre). Return only titles and optional author names; no reasons.\n" +
       "Return STRICT JSON with keys: summary, readers_takeaway, readers_treat, readers_suggestion.\n" +
       "Format readers_suggestion as an array of objects: [{\"title\": string, \"author\"?: string}].\n" +
