@@ -117,7 +117,7 @@ export default function CategoryPage({
     <>
       <header className="trl-header">
         <div className="trl-header__inner">
-          <div className="trl-logo">
+          <div className="trl-logo" onClick={() => { window.location.href = '/'; }} style={{ cursor: 'pointer' }}>
             <img 
               src="/trl-logo.png" 
               alt="The Reader's Lawn Logo" 
@@ -217,8 +217,8 @@ export default function CategoryPage({
         .trl-header__inner{ max-width:1100px; margin:0 auto; padding:14px 16px; display:flex; align-items:center; justify-content:space-between; gap:12px; }
         .trl-logo{ display:flex; align-items:center; gap:12px; }
         .trl-logo img{ height:32px; width:auto; display:block; }
-        .trl-titles h1{ margin:0; font-weight:800; color:var(--brand-800); font-size: clamp(18px, 2.5vw, 24px); line-height:1.1; }
-        .trl-titles p{ margin:2px 0 0; color:var(--muted); font-size: clamp(12px, 1.8vw, 13px); }
+        .trl-titles h1{ margin:0; font-weight:800; color:#266967; font-size: clamp(18px, 2.5vw, 24px); line-height:1.1; }
+        .trl-titles p{ margin:2px 0 0; color:#adcac8; font-size: clamp(12px, 1.8vw, 13px); }
         .trl-header__actions .trl-btn{ border-radius:14px; padding:10px 14px; font-size:14px; font-weight:700; border:1px solid transparent; cursor:pointer; transition: transform .03s ease, box-shadow .2s ease; }
         .trl-btn--outline{ background:#fff; color: var(--brand-700); border-color: var(--brand-600); }
         .trl-btn--outline:hover{ background:#ECFDFF; }

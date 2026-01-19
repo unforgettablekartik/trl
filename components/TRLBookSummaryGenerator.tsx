@@ -569,7 +569,7 @@ export default function TRLBookSummaryGenerator() {
       {/* Header */}
       <header className="trl-header">
         <div className="trl-header__inner">
-          <div className="trl-logo">
+          <div className="trl-logo" onClick={() => { window.location.href = '/'; }} style={{ cursor: 'pointer' }}>
             <Logo />
             <div className="trl-titles">
               <h1>{brand.name}</h1>
@@ -843,8 +843,8 @@ export default function TRLBookSummaryGenerator() {
         .trl-header__inner{ max-width:1100px; margin:0 auto; padding:14px 16px; display:flex; align-items:center; justify-content:space-between; gap:12px; }
         .trl-logo{ display:flex; align-items:center; gap:12px; }
         .trl-logo img{ height:32px; width:auto; display:block; }
-        .trl-titles h1{ margin:0; font-weight:800; color:var(--brand-800); font-size: clamp(18px, 2.5vw, 24px); line-height:1.1; }
-        .trl-titles p{ margin:2px 0 0; color:var(--muted); font-size: clamp(12px, 1.8vw, 13px); }
+        .trl-titles h1{ margin:0; font-weight:800; color:#266967; font-size: clamp(18px, 2.5vw, 24px); line-height:1.1; }
+        .trl-titles p{ margin:2px 0 0; color:#adcac8; font-size: clamp(12px, 1.8vw, 13px); }
 
         .trl-hero-seo { 
           max-width:1100px; 
