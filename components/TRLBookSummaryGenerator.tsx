@@ -584,9 +584,8 @@ export default function TRLBookSummaryGenerator() {
 
       {/* SEO intro */}
       <section className="trl-hero-seo">
-        <p>
-          Generate easy-to-understand book summaries, in a single prompt, from 10,000+ book titles
-        </p>
+        <h2 className="trl-hero-main">Generate Crisp, Clear &amp; Concise Book Summaries</h2>
+        <p className="trl-hero-sub">Single prompt | 10,000+ Book Titles | Easy-to-understand</p>
       </section>
 
       {/* Main */}
@@ -626,7 +625,6 @@ export default function TRLBookSummaryGenerator() {
                   SEARCH
                 </Button>
               </div>
-              <div className="trl-help">Top 5 suggestions appear below. Use the button to load 5 more.</div>
               {searchError && <div className="trl-error">{searchError}</div>}
             </div>
           </Card>
@@ -783,7 +781,7 @@ export default function TRLBookSummaryGenerator() {
 
                     {summary.readers_treat ? (
                       <>
-                        <h3>Reader&apos;s Treat</h3>
+                        <h3>About Author</h3>
                         <p style={{marginTop: '-4px'}}>{summary.readers_treat}</p>
                       </>
                     ) : null}
@@ -848,8 +846,26 @@ export default function TRLBookSummaryGenerator() {
         .trl-titles h1{ margin:0; font-weight:800; color:var(--brand-800); font-size: clamp(18px, 2.5vw, 24px); line-height:1.1; }
         .trl-titles p{ margin:2px 0 0; color:var(--muted); font-size: clamp(12px, 1.8vw, 13px); }
 
-        .trl-hero-seo { max-width:1100px; margin:10px auto 0; padding:0 16px; }
-        .trl-hero-seo p { margin:8px 0 0; color:#334155; font-size:14px; line-height:1.5; }
+        .trl-hero-seo { 
+          max-width:1100px; 
+          margin:10px auto 0; 
+          padding:0 16px; 
+          text-align: center;
+        }
+        .trl-hero-main { 
+          margin: 16px 0 8px; 
+          font-size: clamp(22px, 4vw, 32px); 
+          font-weight: 800; 
+          color: var(--brand-800); 
+          line-height: 1.2;
+        }
+        .trl-hero-sub { 
+          margin: 4px 0 0; 
+          color: #64748b; 
+          font-size: clamp(13px, 2vw, 16px); 
+          line-height: 1.5;
+          font-weight: 500;
+        }
 
         .trl-app{ min-height:100vh; background: linear-gradient(180deg, var(--bg) 0%, #fff 60%); }
         .trl-container{ max-width:1100px; margin:0 auto; padding: 24px 16px 80px; }
