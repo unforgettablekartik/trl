@@ -5,7 +5,7 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const q = searchParams.get('q') || '';
     const maxResults = searchParams.get('maxResults') || '30';
-    if (!q || q.trim().length < 2) {
+    if (!q || q.trim().length < 4) {
       return new Response(JSON.stringify({ items: [] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
     }
     const url = new URL('https://www.googleapis.com/books/v1/volumes');
