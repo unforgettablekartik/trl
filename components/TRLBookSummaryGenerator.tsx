@@ -229,6 +229,16 @@ export default function TRLBookSummaryGenerator() {
         data = await gres.json();
       }
 
+      // `data` can itself be a Google API error payload (e.g. quota/key
+      // errors return `{ error: { code, message } }` with no `items`).
+      // Surface that distinctly instead of reporting it as "no results".
+      if (data?.error) {
+        setBooks([]); setVisibleCount(5);
+        const msg = typeof data.error === 'string' ? data.error : data.error?.message;
+        setSearchError(msg ? `Book search service error: ${msg}` : 'Book search service returned an error. Please try again.');
+        return;
+      }
+
       const items: BookLite[] = (data.items || []).map((it: any) => {
         const v = it.volumeInfo || {};
         const thumb = (v.imageLinks?.thumbnail || v.imageLinks?.smallThumbnail || '').replace(/^http:/, 'https:');

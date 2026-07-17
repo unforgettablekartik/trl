@@ -15,6 +15,7 @@ export async function GET(req: NextRequest) {
     url.searchParams.set('printType', 'books');
     url.searchParams.set('orderBy', 'relevance');
     if (langRestrict) url.searchParams.set('langRestrict', langRestrict);
+    if (process.env.GOOGLE_BOOKS_API_KEY) url.searchParams.set('key', process.env.GOOGLE_BOOKS_API_KEY);
 
     const res = await fetch(url.toString(), { next: { revalidate: 60 } });
     const data = await res.json();
