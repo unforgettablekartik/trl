@@ -210,7 +210,13 @@ export default function TRLBookSummaryGenerator() {
         proxy.searchParams.set('maxResults', '30');
         if (!searchAllLangs && !autoSelectFirst) proxy.searchParams.set('langRestrict', 'en');
         const pres = await fetch(proxy.toString(), { signal: ac.signal });
-        if (pres.ok) data = await pres.json();
+        if (pres.ok) {
+          const json = await pres.json();
+          // A 200 with an `error` field means the proxy's upstream call
+          // failed (rate limit, quota, network) — fall back below instead
+          // of treating it as "zero results".
+          if (!json?.error) data = json;
+        }
       } catch {}
       if (!data) {
         const gurl = new URL('https://www.googleapis.com/books/v1/volumes');
