@@ -196,7 +196,7 @@ export default function TRLBookSummaryGenerator() {
   }
 
   async function doSearch(q: string, autoSelectFirst = false) {
-    if (!q || q.trim().length < 2) { setBooks([]); setVisibleCount(5); setSearchError(null); return; }
+    if (!q || q.trim().length < 4) { setBooks([]); setVisibleCount(5); setSearchError(null); return; }
     try {
       setLoadingSearch(true); setSearchError(null);
       abortSearchRef.current?.abort();
@@ -285,7 +285,7 @@ export default function TRLBookSummaryGenerator() {
   }, []);
 
   useEffect(() => {
-    if (!debouncedQuery || debouncedQuery.trim().length < 2) { setBooks([]); setVisibleCount(5); return; }
+    if (!debouncedQuery || debouncedQuery.trim().length < 4) { setBooks([]); setVisibleCount(5); return; }
     // Don't search if we have a selection from category
     if (fromCategory) return;
     setHasGenerated(false);
@@ -552,6 +552,7 @@ export default function TRLBookSummaryGenerator() {
   function handleSuggestionClick(s: Suggestion) {
     const q = s.title;
     setQuery(q);
+    setFromCategory(false);
     setSelected(null);
     setHasGenerated(false);
     setSummary(null);
@@ -602,8 +603,8 @@ export default function TRLBookSummaryGenerator() {
                   aria-label="Search books or authors"
                   placeholder="Search by book or author (e.g., 'Sapiens' or 'Haruki Murakami')"
                   value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') void doSearch(query); }}
+                  onChange={(e) => { setQuery(e.target.value); setFromCategory(false); }}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { setFromCategory(false); void doSearch(query); } }}
                 />
               </div>
               <div className="trl-search__row">
@@ -619,8 +620,8 @@ export default function TRLBookSummaryGenerator() {
               <div className="trl-search__actions">
                 <Button
                   variant="search"
-                  onClick={() => void doSearch(query)}
-                  disabled={query.trim().length < 2 || loadingSearch}
+                  onClick={() => { setFromCategory(false); void doSearch(query); }}
+                  disabled={query.trim().length < 4 || loadingSearch}
                 >
                   SEARCH
                 </Button>
