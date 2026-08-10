@@ -227,6 +227,7 @@ export default function TRLBookSummaryGenerator() {
         if (!searchAllLangs && !autoSelectFirst) gurl.searchParams.set('langRestrict', 'en');
         const gres = await fetch(gurl.toString(), { signal: ac.signal });
         data = await gres.json();
+        if (data?.error && !data.source) data.source = 'direct-browser (no API key)';
       }
 
       // `data` can itself be a Google API error payload (e.g. quota/key
@@ -235,7 +236,10 @@ export default function TRLBookSummaryGenerator() {
       if (data?.error) {
         setBooks([]); setVisibleCount(5);
         const msg = typeof data.error === 'string' ? data.error : data.error?.message;
-        setSearchError(msg ? `Book search service error: ${msg}` : 'Book search service returned an error. Please try again.');
+        const diag = data.source === 'proxy'
+          ? ` [source: proxy, server key configured: ${data.keyConfigured}]`
+          : data.source ? ` [source: ${data.source}]` : '';
+        setSearchError(msg ? `Book search service error: ${msg}${diag}` : 'Book search service returned an error. Please try again.');
         return;
       }
 
