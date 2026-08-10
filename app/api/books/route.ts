@@ -23,10 +23,18 @@ export async function GET(req: NextRequest) {
     // explicit error instead of a silent empty result, so the client can
     // fall back to querying Google Books directly from the browser.
     if (!res.ok || data?.error) {
-      return new Response(JSON.stringify({ error: data?.error?.message || `upstream_${res.status}` }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({
+        error: data?.error?.message || `upstream_${res.status}`,
+        source: 'proxy',
+        keyConfigured: Boolean(process.env.GOOGLE_BOOKS_API_KEY),
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
     }
     return new Response(JSON.stringify(data), { status: 200, headers: { 'Content-Type': 'application/json' } });
   } catch (e: any) {
-    return new Response(JSON.stringify({ error: e?.message || 'fetch_failed' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({
+      error: e?.message || 'fetch_failed',
+      source: 'proxy',
+      keyConfigured: Boolean(process.env.GOOGLE_BOOKS_API_KEY),
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } });
   }
 }
